@@ -1,0 +1,30 @@
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: ${GRAFANA_ADMIN_PASSWORD}
+
+  # Environment variables for OAuth client secret
+  envFromSecret: grafana-oauth-secret
+
+  # OAuth2/OIDC Configuration for Authelia SSO
+  grafana.ini:
+    server:
+      domain: grafana.rtm.${PUBLIC_DOMAIN}
+      root_url: https://grafana.rtm.${PUBLIC_DOMAIN}
+    
+    auth:
+      disable_login_form: false
+      oauth_auto_login: false
+      oauth_skip_org_role_update_sync: false
+    
+    auth.generic_oauth:
+      enabled: true
+      name: Authelia
+      client_id: grafana
+      client_secret: $__env{GRAFANA_OAUTH_CLIENT_SECRET}
+      scopes: openid profile email groups
+      auth_url: https://authelia.rtm.${PUBLIC_DOMAIN}/api/oidc/authorization
+      token_url: https://authelia.rtm.${PUBLIC_DOMAIN}/api/oidc/token
+      api_url: https://authelia.rtm.${PUBLIC_DOMAIN}/api/oidc/userinfo
+      login_attribute_path: preferred_username
+      groups_attribute_path: groups

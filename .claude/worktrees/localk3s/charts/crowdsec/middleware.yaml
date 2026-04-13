@@ -1,0 +1,18 @@
+# charts/crowdsec/middleware.yaml
+
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: bouncer
+  namespace: traefik
+spec:
+  plugin:
+    bouncer:
+      enabled: true
+      crowdsecMode: stream
+      # Assuming you want to talk to the LAPI service (HTTPS is usually incorrect for internal cluster communication unless configured)
+      # I'm setting this to HTTP as is common for internal Traefik plugin communication, but if LAPI uses HTTPS internally, change it back.
+      crowdsecLapiScheme: http
+      # Correct LAPI service FQDN: crowdsec-lapi.crowdsec.svc.cluster.local (or just the service name if Traefik is in the same cluster/namespace)
+      crowdsecLapiHost: __CROWDSEC_LAPI_HOST__
+      crowdsecLapiKey: __CROWDSEC_BOUNCER_KEY__

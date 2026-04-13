@@ -1,0 +1,329 @@
+---
+# authelia-manual.yaml
+# Fallback / reference manifest for deploying Authelia without Helm.
+# The canonical deployment is via ArgoCD + Helm (charts/authelia/authelia-values.yaml).
+# Use this only for debugging or cluster-bootstrap without ArgoCD.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: authelia
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authelia-config
+  namespace: authelia
+data:
+  configuration.yaml: |
+    theme: 'light'
+
+    server:
+      address: 'tcp://0.0.0.0:9091/'
+
+    log:
+      level: 'info'
+
+    totp:
+      disable: false
+      issuer: 'kubernative.io'
+      algorithm: 'SHA1'
+      digits: 6
+      period: 30
+
+    webauthn:
+      disable: true
+
+    default_2fa_method: 'totp'
+
+    authentication_backend:
+      password_reset:
+        disable: true
+      file:
+        path: '/config/users.yml'
+        password:
+          algorithm: 'argon2'
+          argon2:
+            variant: 'argon2id'
+            iterations: 3
+            memory: 65536
+            parallelism: 4
+            key_length: 32
+            salt_length: 16
+
+    access_control:
+      default_policy: 'deny'
+      rules:
+        - domain: '*.rtm.kubernative.io'
+          policy: 'one_factor'
+          subject:
+            - 'group:admins'
+        - domain: '*.rtm.kubernative.io'
+          policy: 'one_factor'
+          subject:
+            - 'group:viewers'
+        - domain: 'argocd.rtm.kubernative.io'
+          policy: 'one_factor'
+          subject:
+            - 'group:devops_dev'
+            - 'group:devops_test'
+        - domain: 'argocd.rtm.kubernative.io'
+          policy: 'two_factor'
+          subject:
+            - 'group:devops_prd'
+        - domain: 'grafana.rtm.kubernative.io'
+          policy: 'one_factor'
+          subject:
+            - 'group:platform_dev'
+            - 'group:platform_test'
+            - 'group:homelab_dev'
+            - 'group:homelab_test'
+        - domain: 'grafana.rtm.kubernative.io'
+          policy: 'two_factor'
+          subject:
+            - 'group:platform_prd'
+            - 'group:homelab_prd'
+        - domain: 'git.rtm.kubernative.io'
+          policy: 'one_factor'
+          subject:
+            - 'group:devops_dev'
+            - 'group:devops_test'
+            - 'group:homelab_dev'
+            - 'group:homelab_test'
+            - 'group:webapp_dev'
+            - 'group:webapp_test'
+        - domain: 'git.rtm.kubernative.io'
+          policy: 'two_factor'
+          subject:
+            - 'group:devops_prd'
+            - 'group:homelab_prd'
+            - 'group:webapp_prd'
+        - domain: '*.rtm.kubernative.io'
+          policy: 'one_factor'
+          subject:
+            - 'group:homelab_dev'
+            - 'group:homelab_test'
+        - domain: '*.rtm.kubernative.io'
+          policy: 'two_factor'
+          subject:
+            - 'group:homelab_prd'
+
+    session:
+      name: 'authelia_session'
+      same_site: 'lax'
+      secret: '28c21e064b4a382198ba2287af71c24a1b831fbd4e7904433f5b1d806d52f85f'
+      expiration: '1h'
+      inactivity: '5m'
+      cookies:
+        - domain: 'rtm.kubernative.io'
+          subdomain: 'authelia'
+          default_redirection_url: 'https://authelia.rtm.kubernative.io'
+
+    storage:
+      local:
+        path: '/config/db.sqlite3'
+      encryption_key: '26533a4af73ed4468ac9aba20d020d7f27e59621c197e7dd41541b6304e98784'
+
+    regulation:
+      max_retries: 3
+      find_time: '120s'
+      ban_time: '300s'
+
+    notifier:
+      disable_startup_check: false
+      filesystem:
+        filename: '/tmp/authelia-notifications.log'
+
+    identity_providers:
+      oidc:
+        hmac_secret: '0fb4f60557c9199339071f9ab18689061555880a681f56d6b2483fdcce1fd21c'
+        issuer_private_key: |
+          -----BEGIN PRIVATE KEY-----
+          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
+          OkgFASlDiV882MwwTITdYV7DVOFs
+          -----END PRIVATE KEY-----
+        access_token_lifespan: '1h'
+        authorize_code_lifespan: '1m'
+        id_token_lifespan: '1h'
+        refresh_token_lifespan: '90m'
+        clients:
+          - client_id: 'gitea'
+            client_name: 'Gitea Git Repository'
+            client_secret: '2c770e9c43fcf6f4270dd56505d276e79aaf9f6758d7a9f62ef8d286438c5e7f'
+            public: false
+            authorization_policy: 'one_factor'
+            redirect_uris:
+              - 'https://git.rtm.kubernative.io/user/oauth2/authelia/callback'
+            scopes: [openid, profile, email, groups]
+            userinfo_signed_response_alg: 'none'
+          - client_id: 'grafana'
+            client_name: 'Grafana Monitoring Dashboard'
+            client_secret: '19b219263f78b4d8dbbddf8ea270fd97f7103bd0ed51f3a2619385fffc2c4e98'
+            public: false
+            authorization_policy: 'one_factor'
+            redirect_uris:
+              - 'https://grafana.rtm.kubernative.io/login/generic_oauth'
+            scopes: [openid, profile, email, groups]
+            userinfo_signed_response_alg: 'none'
+
+  users.yml: |
+    # Managed by scripts/generate-authelia-users.sh
+    # See authelia-users.yml in repo root for the authoritative copy.
+    users:
+      smii:
+        displayname: "System Administrator"
+        password: "$argon2id$v=19$m=65536,t=3,p=4$iNAxAzKLla3N4gUkjFWNHw$sXfdJEAbBL57ZoQc9PKyUA"
+        email: "mj.lopes@gmail.com"
+        groups: [admins, homelab_prd, webapp_prd, devops_prd, platform_prd]
+      viewer:
+        displayname: "Read Only User"
+        password: "$argon2id$v=19$m=65536,t=3,p=4$iNAxAzKLla3N4gUkjFWNHw$sXfdJEAbBL57ZoQc9PKyUA"
+        email: "viewer@kubernative.io"
+        groups: [viewers]
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authelia-data
+  namespace: authelia
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authelia
+  namespace: authelia
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authelia
+  template:
+    metadata:
+      labels:
+        app: authelia
+    spec:
+      containers:
+      - name: authelia
+        image: ghcr.io/authelia/authelia:latest
+        ports:
+        - containerPort: 9091
+        volumeMounts:
+        - name: config
+          mountPath: /config/configuration.yaml
+          subPath: configuration.yaml
+        - name: config
+          mountPath: /config/users.yml
+          subPath: users.yml
+        - name: data
+          mountPath: /config/db
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      enableServiceLinks: false
+      volumes:
+      - name: config
+        configMap:
+          name: authelia-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: authelia-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authelia
+  namespace: authelia
+spec:
+  selector:
+    app: authelia
+  ports:
+  - port: 80
+    targetPort: 9091
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: authelia
+  namespace: authelia
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - authelia.rtm.kubernative.io
+    secretName: authelia-tls
+  rules:
+  - host: authelia.rtm.kubernative.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: authelia
+            port:
+              number: 80

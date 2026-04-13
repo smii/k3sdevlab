@@ -1,0 +1,13 @@
+# cert-manager ClusterIssuer using the Vagrant self-signed CA.
+# The CA keypair is stored in the 'vagrant-ca-keypair' TLS secret
+# in the cert-manager namespace, created by vagrant/provision.sh.
+#
+# All app Ingresses reference cert-manager.io/cluster-issuer: vagrant-ca
+# (patched from letsencrypt-prod by provision.sh).
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: vagrant-ca
+spec:
+  ca:
+    secretName: vagrant-ca-keypair

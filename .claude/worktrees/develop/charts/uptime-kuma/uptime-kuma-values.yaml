@@ -1,0 +1,51 @@
+# Define a separate namespace for Uptime Kuma
+# If you create the namespace with the --create-namespace flag,
+# you don't need this block.
+namespace:
+  name: uptime-kuma
+
+# Configure the service to expose Uptime Kuma
+service:
+  type: ClusterIP
+  port: 3001
+  
+# Enable and configure the Ingress resource
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  hostname: uptime.rtm.kubernative.io
+  hosts:
+    - host: uptime.rtm.kubernative.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          backend:
+            service:
+              name: uptime-kuma-service
+              port:
+                number: 3001
+  # You can add annotations for Traefik here if needed,
+  # but for a basic setup with Cloudflare, this is sufficient.
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    - secretName: uptime-kuma-tls
+      hosts:
+        - uptime.rtm.kubernative.io
+
+# Enable persistent storage for Uptime Kuma's data
+# This is crucial so your monitoring data and configurations are not lost on pod restarts.
+persistence:
+  enabled: true
+  storageClassName: local-path # Use the default K3s storage class
+  accessMode: ReadWriteOnce
+  size: 1Gi # Adjust storage size as needed
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi

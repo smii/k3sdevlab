@@ -1,0 +1,12 @@
+mirrors:
+  "":
+    endpoint:
+      - "http://"
+
+configs: {}
+mirrors:
+  "registry.rtm.local":
+    endpoint:
+      - "http://registry.rtm.local"
+
+configs: {}

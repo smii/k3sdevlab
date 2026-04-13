@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Work on </title>
+    <link>//lz.dev.kubernative.io/categories/work/</link>
+    <description>Recent content in Work on </description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <managingEditor>mj.lopes@gmail.com ( S  M I  I )</managingEditor>
+    <webMaster>mj.lopes@gmail.com ( S  M I  I )</webMaster>
+    <lastBuildDate>Sun, 14 Jan 2024 07:07:07 +0100</lastBuildDate>
+    <atom:link href="//lz.dev.kubernative.io/categories/work/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Van 8-jarige geek tot Operational Manager &amp; Tech Lead</title>
+      <link>//lz.dev.kubernative.io/blog/from-techlead-to-manager/</link>
+      <pubDate>Sun, 14 Jan 2024 07:07:07 +0100</pubDate><author>mj.lopes@gmail.com ( S  M I  I )</author>
+      <guid>//lz.dev.kubernative.io/blog/from-techlead-to-manager/</guid>
+      <description>&lt;h2 id=&#34;hoe-het-allemaal-begon-dos-installeren-als-8-jarige&#34;&gt;&lt;strong&gt;Hoe het allemaal begon: DOS installeren als 8-jarige&lt;/strong&gt; &lt;/h2&gt;&#xA;&lt;p&gt;Ik kom uit een familie die eind jaren 80 al in de IT zat en kreeg mijn eerste &#xA;&lt;a href=&#34;https://en.wikipedia.org/wiki/Intel_8086&#34;&gt;8086&lt;/a&gt;&#xA; (JA een 8086) met 4 MB schijf, 512 KB RAM en een zwart-zwit scherm toen ik 8 jaar oud was. &lt;/p&gt;&#xA;&lt;p&gt;Bij deze pc kreeg ik de instructie dat ik enkel bestanden kon starten die eindigde met .exe in de directory ‘games’, maar hiervoor was ik te eigenwijs. Ik vond andere directories ook interessant en speelde met programmas uit de andere directories, zoals de DOS directory. Ook startte ik fdisk (&#xA;&lt;a href=&#34;https://en.wikipedia.org/wiki/Fdisk&#34;&gt;link voor de jonge lezers&lt;/a&gt;&#xA;) op, met als gevolg dat DOS niet meer startte en ik ook niet wist hoe ik dat kon repareren. Ja, ik dacht dat mijn computer kapot was.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

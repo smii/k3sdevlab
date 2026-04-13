@@ -1,0 +1,76 @@
+driver:
+  enabled: true
+  # ebpf uses a pre-compiled probe downloaded from falcosecurity CDN
+  # modern_ebpf fails with 'could not initialize inotify handler' on this kernel config
+  kind: ebpf
+
+collectors:
+  enabled: true
+  containerd:
+    enabled: true
+    socket: /run/k3s/containerd/containerd.sock
+
+falco:
+  # Disable inotify-based config watching — fails with 'could not initialize inotify handler'
+  # on this node. Config changes require a pod restart instead of live reload.
+  watch_config_files: false
+  grpc:
+    enabled: true
+  grpc_output:
+    enabled: true
+  json_output: true
+  log_level: info
+
+falcosidekick:
+  enabled: true
+
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: prometheus-stack
+
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+  webui:
+    enabled: true
+    # Falcosidekick-UI has its own basic auth; disable it since Authelia handles auth
+    disableauth: true
+    replicaCount: 1
+
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+    redis:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 320Mi
+
+    ingress:
+      enabled: true
+      ingressClassName: traefik
+      annotations:
+        traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: falco.rtm.kubernative.io
+          paths:
+            - path: /
+      tls:
+        - secretName: falco-tls
+          hosts:
+            - falco.rtm.kubernative.io

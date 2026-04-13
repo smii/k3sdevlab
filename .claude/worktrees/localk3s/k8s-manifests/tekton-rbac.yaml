@@ -1,0 +1,61 @@
+# Tekton RBAC
+# Provides the pipeline ServiceAccount with permissions to manage pipeline
+# resources and access build secrets (e.g. Harbor registry credentials).
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-pipeline-sa
+  namespace: tekton-pipelines
+
+---
+# ClusterRole granting the named pipeline SA rights to manage Tekton
+# resources cluster-wide and read Secrets (registry credentials, etc.).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tekton-pipeline-runner
+rules:
+  - apiGroups: ["tekton.dev"]
+    resources: ["pipelineruns", "taskruns"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+
+---
+# Bind the named SA to the ClusterRole.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-pipeline-runner-binding
+subjects:
+  - kind: ServiceAccount
+    name: tekton-pipeline-sa
+    namespace: tekton-pipelines
+roleRef:
+  kind: ClusterRole
+  name: tekton-pipeline-runner
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Give the default Tekton `pipeline` ServiceAccount (auto-created by the
+# chart) cluster-admin within the tekton-pipelines namespace so it can
+# manage all resources it needs to orchestrate runs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-pipeline-sa-admin
+  namespace: tekton-pipelines
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: tekton-pipelines
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,58 @@
+# Production Environment Overlay
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - ../../applications/core
+  - ../../applications/monitoring
+  - ../../applications/apps
+  - ../../applications/security
+  - ../../projects
+
+patches:
+  # Production-specific patches
+  - target:
+      kind: Application
+      name: ".*"
+    patch: |
+      - op: add
+        path: /metadata/labels/environment
+        value: prod
+      - op: replace
+        path: /spec/syncPolicy/automated/prune
+        value: true
+      - op: replace
+        path: /spec/syncPolicy/automated/selfHeal
+        value: true
+  
+  # Higher resource limits for production
+  - target:
+      kind: Application
+      name: prometheus-stack
+    patch: |
+      - op: add
+        path: /spec/source/helm/parameters
+        value:
+          - name: prometheus.prometheusSpec.resources.requests.memory
+            value: "2Gi"
+          - name: prometheus.prometheusSpec.resources.limits.memory
+            value: "4Gi"
+          - name: prometheus.prometheusSpec.retention
+            value: "30d"
+  
+  # Production-specific Harbor configuration
+  - target:
+      kind: Application
+      name: harbor
+    patch: |
+      - op: add
+        path: /spec/source/helm/parameters
+        value:
+          - name: persistence.enabled
+            value: "true"
+          - name: persistence.persistentVolumeClaim.registry.size
+            value: "100Gi"
+          - name: persistence.persistentVolumeClaim.database.size
+            value: "10Gi"

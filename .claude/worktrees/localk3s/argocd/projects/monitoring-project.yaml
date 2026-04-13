@@ -1,0 +1,38 @@
+# Monitoring and Observability Project
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: monitoring
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Monitoring, metrics, and logging applications
+  sourceRepos:
+  - 'https://github.com/smii/k3sdevlab'
+  - 'https://prometheus-community.github.io/helm-charts'
+  - 'https://grafana.github.io/helm-charts'
+  - 'https://dirsigler.github.io/uptime-kuma-helm'
+  destinations:
+  - namespace: 'monitoring'
+    server: https://kubernetes.default.svc
+  - namespace: 'logging'
+    server: https://kubernetes.default.svc
+  - namespace: 'uptime-kuma'
+    server: https://kubernetes.default.svc
+  - namespace: 'kube-system'
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  roles:
+  - name: viewer
+    description: Read-only access to monitoring
+    policies:
+    - p, proj:monitoring:viewer, applications, get, monitoring/*, allow
+    - p, proj:monitoring:viewer, applications, sync, monitoring/*, allow
+    groups:
+    - homelab:monitoring

@@ -1,0 +1,52 @@
+# Harbor Container Registry
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: harbor
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: container-registry
+    app.kubernetes.io/part-of: devops-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: applications
+  sources:
+    - repoURL: https://helm.goharbor.io
+      chart: harbor
+      targetRevision: "*"
+      helm:
+        valueFiles:
+          - $values/charts/harbor/harbor-values.yaml
+    - repoURL: https://github.com/smii/k3sdevlab
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: harbor
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      namespace: harbor
+      jqPathExpressions:
+        - '.data'
+    - group: apps
+      kind: Deployment
+      namespace: harbor
+      jqPathExpressions:
+        - '.spec.template.spec.containers[].env'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

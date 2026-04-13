@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title></title>
+    <link>//lz.dev.kubernative.io/</link>
+    <description>Recent content on </description>
+    <generator>Hugo</generator>
+    <language>en-us</language>
+    <managingEditor>mj.lopes@gmail.com ( S  M I  I )</managingEditor>
+    <webMaster>mj.lopes@gmail.com ( S  M I  I )</webMaster>
+    <lastBuildDate>Mon, 01 Sep 2025 19:00:33 +0000</lastBuildDate>
+    <atom:link href="//lz.dev.kubernative.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>My First Post</title>
+      <link>//lz.dev.kubernative.io/posts/my-first-post/</link>
+      <pubDate>Mon, 01 Sep 2025 19:00:33 +0000</pubDate><author>mj.lopes@gmail.com ( S  M I  I )</author>
+      <guid>//lz.dev.kubernative.io/posts/my-first-post/</guid>
+      <description></description>
+    </item>
+    <item>
+      <title>Cultivating Community: From Isolated Consultant to Thriving Tribe | Devoteam</title>
+      <link>//lz.dev.kubernative.io/blog/cultivating-community/</link>
+      <pubDate>Mon, 14 Apr 2025 07:07:07 +0100</pubDate><author>mj.lopes@gmail.com ( S  M I  I )</author>
+      <guid>//lz.dev.kubernative.io/blog/cultivating-community/</guid>
+      <description>&lt;h2 id=&#34;introduction&#34;&gt;&lt;strong&gt;Introduction&lt;/strong&gt;&lt;/h2&gt;&#xA;&lt;p&gt;“Culture brings people together, and bringing people together builds expertise.” This principle has shaped my career, particularly during my time as a consultant. While business success is vital, I’ve learned that a strong, supportive culture is equally essential for building a high-performing team. It’s the unseen force that transforms individuals into a cohesive and dynamic unit.&lt;/p&gt;&#xA;&lt;h2 id=&#34;the-consultants-desire-for-connection&#34;&gt;&lt;strong&gt;The Consultant’s Desire for Connection&lt;/strong&gt;&lt;/h2&gt;&#xA;&lt;p&gt;“Throughout my consulting years, I had a deep passion for sharing knowledge and insights gained from various projects. I loved presenting code, discussing experiences, and exchanging ideas. However, I noticed that knowledge and experiences often remained within individual project teams, leading to a sense of isolation. While we had architectural patterns in place, the feeling of ‘reinventing the wheel’ was sometimes present.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Van 8-jarige geek tot Operational Manager &amp; Tech Lead</title>
+      <link>//lz.dev.kubernative.io/blog/from-techlead-to-manager/</link>
+      <pubDate>Sun, 14 Jan 2024 07:07:07 +0100</pubDate><author>mj.lopes@gmail.com ( S  M I  I )</author>
+      <guid>//lz.dev.kubernative.io/blog/from-techlead-to-manager/</guid>
+      <description>&lt;h2 id=&#34;hoe-het-allemaal-begon-dos-installeren-als-8-jarige&#34;&gt;&lt;strong&gt;Hoe het allemaal begon: DOS installeren als 8-jarige&lt;/strong&gt; &lt;/h2&gt;&#xA;&lt;p&gt;Ik kom uit een familie die eind jaren 80 al in de IT zat en kreeg mijn eerste &#xA;&lt;a href=&#34;https://en.wikipedia.org/wiki/Intel_8086&#34;&gt;8086&lt;/a&gt;&#xA; (JA een 8086) met 4 MB schijf, 512 KB RAM en een zwart-zwit scherm toen ik 8 jaar oud was. &lt;/p&gt;&#xA;&lt;p&gt;Bij deze pc kreeg ik de instructie dat ik enkel bestanden kon starten die eindigde met .exe in de directory ‘games’, maar hiervoor was ik te eigenwijs. Ik vond andere directories ook interessant en speelde met programmas uit de andere directories, zoals de DOS directory. Ook startte ik fdisk (&#xA;&lt;a href=&#34;https://en.wikipedia.org/wiki/Fdisk&#34;&gt;link voor de jonge lezers&lt;/a&gt;&#xA;) op, met als gevolg dat DOS niet meer startte en ik ook niet wist hoe ik dat kon repareren. Ja, ik dacht dat mijn computer kapot was.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Well Hello there...</title>
+      <link>//lz.dev.kubernative.io/about/about/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><author>mj.lopes@gmail.com ( S  M I  I )</author>
+      <guid>//lz.dev.kubernative.io/about/about/</guid>
+      <description>&lt;h3 id=&#34;curious-now-huh&#34;&gt;Curious now, huh?&lt;/h3&gt;&#xA;&lt;img src=//lz.dev.kubernative.io/images/curious.jpg  width=&#34;380&#34; height=&#34;460&#34; allign=&#34;middle&#34;&gt;</description>
+    </item>
+  </channel>
+</rss>

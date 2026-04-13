@@ -1,0 +1,19 @@
+# File: charts/traefik/traefik-values.yaml
+# values.yaml
+ingressRoute:
+  dashboard:
+    enabled: true
+    matchRule: Host(`${TRAEFIK_DASHBOARD_HOST}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+    entryPoints:
+      - web
+providers:
+  kubernetesGateway:
+    enabled: true
+gateway:
+  listeners:
+    web:
+      namespacePolicy:
+        from: All
+providers:
+  kubernetesCRD:
+    enabled: true

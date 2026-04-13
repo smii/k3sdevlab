@@ -1,0 +1,88 @@
+# Tekton Pipelines + Triggers
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tekton
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: ci-cd
+    app.kubernetes.io/part-of: core-infrastructure
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: core-infrastructure
+  sources:
+    - repoURL: https://cdfoundation.github.io/tekton-helm-chart/
+      chart: tekton-pipeline
+      targetRevision: "*"
+      helm:
+        valueFiles:
+          - $values/charts/tekton/tekton-values.yaml
+    - repoURL: https://github.com/smii/k3sdevlab
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tekton-pipelines
+  ignoreDifferences:
+    # Helm renders conversion.strategy:Webhook but the tekton-webhook controller injects
+    # the caBundle and manages the live state. ArgoCD and the webhook fight each other.
+    # Also ignore .status (acceptedNames/conditions/storedVersions managed by API server).
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: customruns.tekton.dev
+      jqPathExpressions:
+        - .status
+        - .spec.conversion
+        - .spec.preserveUnknownFields
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: pipelineruns.tekton.dev
+      jqPathExpressions:
+        - .status
+        - .spec.conversion
+        - .spec.preserveUnknownFields
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: pipelines.tekton.dev
+      jqPathExpressions:
+        - .status
+        - .spec.conversion
+        - .spec.preserveUnknownFields
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: stepactions.tekton.dev
+      jqPathExpressions:
+        - .status
+        - .spec.conversion
+        - .spec.preserveUnknownFields
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: taskruns.tekton.dev
+      jqPathExpressions:
+        - .status
+        - .spec.conversion
+        - .spec.preserveUnknownFields
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: tasks.tekton.dev
+      jqPathExpressions:
+        - .status
+        - .spec.conversion
+        - .spec.preserveUnknownFields
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

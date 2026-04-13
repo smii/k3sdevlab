@@ -1,0 +1,59 @@
+image:
+  repository: ghcr.io/ajnart/homarr
+  tag: "0.16.0"
+
+env:
+  TZ: "Europe/Amsterdam"
+  DEFAULT_COLOR_SCHEME: dark
+  NEXTAUTH_URL: "https://portal.rtm.kubernative.io"
+  AUTH_PROVIDER: "oidc"
+  AUTH_OIDC_URI: "https://authelia.rtm.kubernative.io"
+  AUTH_OIDC_CLIENT_NAME: "Authelia"
+  AUTH_OIDC_ADMIN_GROUP: "admins"
+  AUTH_OIDC_OWNER_GROUP: "admins"
+  AUTH_OIDC_SCOPE_OVERWRITE: "openid email profile groups"
+  AUTH_OIDC_CLIENT_ID: "homarr"
+  AUTH_OIDC_CLIENT_SECRET: "65a4ecd3f5ffed185a9298c2afad4941aecc4cefe7e6f7e9b3451b12b8bf056f"
+
+persistence:
+  - name: homarr-config
+    enabled: true
+    storageClassName: local-path
+    accessMode: ReadWriteOnce
+    size: 100Mi
+    mountPath: /app/data/configs
+  - name: homarr-database
+    enabled: true
+    storageClassName: local-path
+    accessMode: ReadWriteOnce
+    size: 100Mi
+    mountPath: /app/database
+  - name: homarr-icons
+    enabled: true
+    storageClassName: local-path
+    accessMode: ReadWriteOnce
+    size: 100Mi
+    mountPath: /app/public/icons
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: portal.rtm.kubernative.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: homarr-tls
+      hosts:
+        - portal.rtm.kubernative.io
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi

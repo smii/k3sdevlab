@@ -1,0 +1,36 @@
+# charts/crowdsec/security-engine-values.yaml
+
+# for raw logs format: json or cri (docker|containerd)
+container_runtime: containerd
+agent:
+  acquisition:
+    - namespace: traefik
+      podName: traefik-*
+      program: traefik
+  env:
+    - name: COLLECTIONS
+      value: "crowdsecurity/traefik"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 192Mi
+
+lapi:
+  # Disable console enrollment for now to get basic functionality working
+  env: []
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+  
+  # Note: Console enrollment disabled - CrowdSec will work locally without cloud console
+  # To enable console features, you need to:
+  # 1. Create an account at console.crowdsec.net
+  # 2. Get an enrollment key
+  # 3. Set the proper values for enrollKey, bouncerName, and bouncerKey

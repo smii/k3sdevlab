@@ -1,0 +1,83 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: coder-postgres-secret
+  namespace: coder
+type: Opaque
+stringData:
+  POSTGRES_DB: coder
+  POSTGRES_USER: coder
+  POSTGRES_PASSWORD: "2e055df7a4a97053bef9a0ecb8eb5287"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: coder-postgres-pvc
+  namespace: coder
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: coder-postgres
+  namespace: coder
+spec:
+  serviceName: coder-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coder-postgres
+  template:
+    metadata:
+      labels:
+        app: coder-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: coder-postgres-secret
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              subPath: pgdata
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "coder", "-d", "coder"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: coder-postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coder-postgres
+  namespace: coder
+spec:
+  selector:
+    app: coder-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

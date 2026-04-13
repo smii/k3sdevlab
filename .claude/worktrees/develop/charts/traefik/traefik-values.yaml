@@ -1,0 +1,28 @@
+# File: charts/traefik/traefik-values.yaml
+# values.yaml
+api:
+  insecure: true
+ports:
+  traefik:
+    expose:
+      default: true
+    exposedPort: 8080
+ingressRoute:
+  dashboard:
+    enabled: true
+    matchRule: Host(`traefik.rtm.kubernative.io`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+    entryPoints:
+      - web
+    middlewares:
+      - name: authelia-forwardauth
+        namespace: authelia
+providers:
+  kubernetesGateway:
+    enabled: true
+  kubernetesCRD:
+    enabled: true
+gateway:
+  listeners:
+    web:
+      namespacePolicy:
+        from: All

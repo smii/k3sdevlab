@@ -1,0 +1,6 @@
+mirrors:
+  "$REGISTRY_HOST":
+    endpoint:
+      - "http://$REGISTRY_HOST"
+
+configs: {}

@@ -1,0 +1,20 @@
+# Tekton Pipelines Helm values
+# Minimal config — defaults are sufficient for a single-node K3s cluster.
+
+# Override namespace labels: use baseline not restricted.
+# Kaniko (build-and-push task) requires root (runAsUser=0) which is blocked
+# by 'restricted' PSA. 'baseline' allows root but blocks privileged containers/
+# host paths, which is appropriate for a homelab CI/CD namespace.
+namespace:
+  labels:
+    pod-security.kubernetes.io/enforce: baseline
+    app.kubernetes.io/part-of: tekton-pipelines
+
+pipeline:
+  # Feature flags — leave at defaults for standard behaviour
+  params: []
+
+# Feature flags ConfigMap overrides
+featureFlags:
+  # Adds securityContext to system-injected init containers (prepare, place-scripts).
+  set-security-context: "true"

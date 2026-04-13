@@ -1,0 +1,41 @@
+coder:
+  env:
+    - name: CODER_PG_CONNECTION_URL
+      value: "postgresql://coder:2e055df7a4a97053bef9a0ecb8eb5287@coder-postgres.coder.svc.cluster.local/coder?sslmode=disable"
+    - name: CODER_ACCESS_URL
+      value: "https://realcoder.rtm.kubernative.io"
+    - name: CODER_WILDCARD_ACCESS_URL
+      value: "*.realcoder.rtm.kubernative.io"
+    - name: CODER_OIDC_ISSUER_URL
+      value: "https://authelia.rtm.kubernative.io"
+    - name: CODER_OIDC_CLIENT_ID
+      value: "coder"
+    - name: CODER_OIDC_CLIENT_SECRET
+      value: "11329da2f12fb1bfc66b9b2bd653ffa977d5da8ec4732da3c11cb1b0317a5f4e"
+    - name: CODER_OIDC_SCOPES
+      value: "openid,profile,email,groups"
+    - name: CODER_OIDC_GROUP_FIELD
+      value: "groups"
+
+  ingress:
+    enable: true
+    className: traefik
+    host: realcoder.rtm.kubernative.io
+    wildcardHost: "*.realcoder.rtm.kubernative.io"
+    annotations:
+      traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    tls:
+      enable: true
+      secretName: coder-tls
+    wildcardTLS:
+      enable: true
+      secretName: coder-wildcard-tls
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi

@@ -1,0 +1,61 @@
+# Promtail Configuration with ulimit fix
+
+# Add init container to increase file descriptor limits
+initContainer:
+  - name: init-sysctl
+    image: docker.io/busybox:1.35
+    imagePullPolicy: IfNotPresent
+    command:
+      - sh
+      - -c
+      - |
+        echo "Increasing file descriptor limits..."
+        ulimit -n 65536
+        echo "ulimit -n: $(ulimit -n)"
+    securityContext:
+      privileged: true
+
+config:
+  # Configure client to send logs to Loki
+  clients:
+    - url: http://loki-stack.logging.svc.cluster.local:3100/loki/api/v1/push
+
+  server:
+    http_listen_port: 3101
+    
+  positions:
+    filename: /run/promtail/positions.yaml
+
+  # Very simple scrape config - just syslog to test
+  scrape_configs:
+  - job_name: syslog
+    static_configs:
+    - targets:
+        - localhost
+      labels:
+        job: syslog
+        __path__: /var/log/syslog
+
+# DaemonSet configuration 
+daemonset:
+  enabled: true
+
+# Conservative resource limits  
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# Security context with privileged access for ulimit
+securityContext:
+  allowPrivilegeEscalation: true
+  readOnlyRootFilesystem: false
+  privileged: true
+
+# Service monitor for monitoring
+serviceMonitor:
+  enabled: true
+  namespace: logging
