@@ -1,0 +1,699 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage
+  namespace: homepage
+  labels:
+    app.kubernetes.io/name: homepage
+data:
+  kubernetes.yaml: |
+    mode: cluster
+    ingress: true
+    traefik: true
+
+  settings.yaml: |
+    title: k3sdevlab Homelab
+    theme: dark
+    color: violet
+    headerStyle: boxedWidgets
+    cardBlur: sm
+    statusStyle: dot
+    iconStyle: theme
+    target: _blank
+    hideVersion: true
+    fullWidth: true
+    disableCollapse: false
+    useEqualHeights: true
+    quicklaunch:
+      searchDescriptions: true
+      hideInternetSearch: false
+      showSearchSuggestions: true
+      provider: duckduckgo
+    layout:
+      - Cluster Panels:
+          icon: mdi-kubernetes
+          style: row
+          columns: 2
+      - Overview:
+          icon: mdi-view-dashboard
+          style: row
+          columns: 4
+      - Notes:
+          icon: mdi-note-text
+          style: row
+          columns: 1
+      - Infrastructure:
+          icon: mdi-server
+          style: row
+          columns: 4
+      - Services:
+          icon: mdi-apps
+          style: row
+          columns: 4
+      - Security:
+          icon: mdi-shield-lock
+          style: row
+          columns: 3
+      - Monitoring:
+          icon: mdi-chart-line
+          style: row
+          columns: 3
+      - CI/CD:
+          icon: mdi-pipe
+          style: row
+          columns: 3
+      - Operations:
+          icon: mdi-console
+          style: row
+          columns: 3
+
+  services.yaml: |
+    - Overview:
+        - k3sdevlab Repo:
+            icon: si-github
+            href: https://github.com/smii/k3sdevlab/commits
+            description: Homelab Repository (click for commits)
+        - ArgoCD:
+            icon: si-argo
+            href: https://argocd.rtm.kubernative.io
+            siteMonitor: http://argocd-server.argocd:80
+            statusStyle: dot
+            description: GitOps Deployments
+            widget:
+              type: argocd
+              url: http://argocd-server.argocd:80
+              key: "{{HOMEPAGE_VAR_ARGOCD_TOKEN}}"
+              fields: ["apps", "synced", "outOfSync", "healthy"]
+              highlight:
+                outOfSync:
+                  numeric:
+                    - level: danger
+                      when: gte
+                      value: 1
+                    - level: good
+                      when: eq
+                      value: 0
+        - Grafana:
+            icon: si-grafana
+            href: https://grafana.rtm.kubernative.io
+            siteMonitor: http://prometheus-stack-grafana.monitoring:80
+            statusStyle: dot
+            description: Dashboards & Observability
+            widget:
+              type: grafana
+              url: http://prometheus-stack-grafana.monitoring:80
+              version: 2
+              username: "{{HOMEPAGE_VAR_GRAFANA_USER}}"
+              password: "{{HOMEPAGE_VAR_GRAFANA_PASS}}"
+              fields: ["dashboards", "datasources", "alertstriggered"]
+        - Prometheus:
+            icon: si-prometheus
+            href: https://prometheus.rtm.kubernative.io
+            siteMonitor: http://prometheus-stack-kube-prom-prometheus.monitoring:9090
+            statusStyle: dot
+            description: Metrics & Alerting
+            widget:
+              type: prometheus
+              url: http://prometheus-stack-kube-prom-prometheus.monitoring:9090
+              fields: ["targets_up", "targets_down", "targets_total"]
+              highlight:
+                targets_down:
+                  numeric:
+                    - level: danger
+                      when: gte
+                      value: 1
+                    - level: good
+                      when: eq
+                      value: 0
+                targets_up:
+                  numeric:
+                    - level: good
+                      when: gte
+                      value: 1
+        - Uptime Kuma:
+            icon: si-uptimekuma
+            href: https://uptime.rtm.kubernative.io
+            siteMonitor: http://uptime-kuma.uptime-kuma:3001
+            statusStyle: dot
+            description: Uptime Monitor
+    - Notes:
+        - Dashboard Notes:
+            icon: mdi-note-text
+            description: |
+              ✓ All services deployed via ArgoCD GitOps
+              ✓ Homepage dashboard with 9 tabs + metrics
+              ✓ Enhanced Tekton visualization with success rate
+              ✓ Falco security events monitored
+              ✓ GitHub repo: github.com/smii/k3sdevlab
+              
+              To add custom notes, edit k8s-manifests/homepage/configmap.yaml
+    - Infrastructure:
+        - Traefik:
+            icon: si-traefikproxy
+            href: https://traefik.rtm.kubernative.io
+            siteMonitor: http://traefik.traefik:8080/ping
+            statusStyle: dot
+            description: Ingress Controller
+            widget:
+              type: traefik
+              url: http://traefik.traefik:8080
+              fields: ["routers", "services", "middleware"]
+        - Authelia:
+            icon: mdi-shield-account
+            href: https://authelia.rtm.kubernative.io
+            siteMonitor: http://authelia.authelia:80/api/health
+            statusStyle: dot
+            description: SSO Gateway
+            widget:
+              type: prometheusmetric
+              url: http://prometheus-stack-kube-prom-prometheus.monitoring:9090
+              refreshInterval: 30000
+              metrics:
+                - label: Auth OK
+                  query: authelia_authz{code="302"}
+                  format:
+                    type: number
+                    options:
+                      maximumFractionDigits: 0
+                - label: Auth Denied
+                  query: authelia_authz{code="401"}
+                  format:
+                    type: number
+                    options:
+                      maximumFractionDigits: 0
+                - label: Requests
+                  query: sum(authelia_request)
+                  format:
+                    type: number
+                    options:
+                      maximumFractionDigits: 0
+        - cert-manager:
+            icon: mdi-certificate
+            description: TLS Certificate Management
+            namespace: cert-manager
+            app: cert-manager
+            statusStyle: dot
+        - Loki:
+            icon: si-grafana
+            description: Log Aggregation
+            namespace: logging
+            app: loki
+            statusStyle: dot
+    - Services:
+        - Gitea:
+            icon: si-gitea
+            href: https://git.rtm.kubernative.io
+            siteMonitor: http://gitea-http.gitea:3000
+            statusStyle: dot
+            description: Git Repositories
+            widget:
+              type: gitea
+              url: http://gitea-http.gitea:3000
+              key: "{{HOMEPAGE_VAR_GITEA_TOKEN}}"
+              fields: ["repositories", "issues", "pulls", "notifications"]
+        - Harbor:
+            icon: sh-harbor
+            href: https://allaboard.rtm.kubernative.io
+            siteMonitor: http://harbor-core.harbor:80/api/v2.0/health
+            statusStyle: dot
+            description: Container Registry
+            widget:
+              type: customapi
+              url: http://harbor-core.harbor:80/api/v2.0/statistics
+              username: "{{HOMEPAGE_VAR_HARBOR_USER}}"
+              password: "{{HOMEPAGE_VAR_HARBOR_PASS}}"
+              refreshInterval: 30000
+              mappings:
+                - field: total_project_count
+                  label: Projects
+                  format: number
+                - field: total_repo_count
+                  label: Repos
+                  format: number
+                - field: total_storage_consumption
+                  label: Storage
+                  format: bytes
+        - Hugo Blog:
+            icon: si-hugo
+            href: https://blog.rtm.kubernative.io
+            siteMonitor: https://blog.rtm.kubernative.io
+            statusStyle: dot
+            description: Blog (check Loki for access logs)
+    - Security:
+        - CrowdSec:
+            icon: sh-crowdsec
+            href: "#"
+            description: Intrusion Detection + Bans
+            widget:
+              type: crowdsec
+              url: http://crowdsec-service.crowdsec:8080
+              username: "{{HOMEPAGE_VAR_CROWDSEC_USER}}"
+              password: "{{HOMEPAGE_VAR_CROWDSEC_PASS}}"
+              fields: ["alerts", "bans"]
+        - Falco Events:
+            icon: sh-falco
+            href: https://falco.rtm.kubernative.io
+            description: Runtime Security Events
+            widget:
+              type: prometheusmetric
+              url: http://prometheus-stack-kube-prom-prometheus.monitoring:9090
+              refreshInterval: 30000
+              metrics:
+                - label: Total
+                  query: sum(falcosecurity_falcosidekick_falco_events_total)
+                  format:
+                    type: number
+                    options:
+                      maximumFractionDigits: 0
+                - label: Critical
+                  query: sum(falcosecurity_falcosidekick_falco_events_total{priority_raw="critical"})
+                  format:
+                    type: number
+                    options:
+                      maximumFractionDigits: 0
+                - label: Error
+                  query: sum(falcosecurity_falcosidekick_falco_events_total{priority_raw="error"})
+                  format:
+                    type: number
+                    options:
+                      maximumFractionDigits: 0
+                - label: Warning
+                  query: sum(falcosecurity_falcosidekick_falco_events_total{priority_raw="warning"})
+                  format:
+                    type: number
+                    options:
+                      maximumFractionDigits: 0
+                - label: Notice
+                  query: sum(falcosecurity_falcosidekick_falco_events_total{priority_raw="notice"})
+                  format:
+                    type: number
+                    options:
+                      maximumFractionDigits: 0
+                - label: Events/min
+                  query: rate(falcosecurity_falcosidekick_falco_events_total[5m]) * 60
+                  format:
+                    type: number
+                    suffix: "/min"
+                    options:
+                      maximumFractionDigits: 1
+              highlight:
+                Critical:
+                  numeric:
+                    - level: danger
+                      when: gte
+                      value: 1
+                Error:
+                  numeric:
+                    - level: danger
+                      when: gte
+                      value: 1
+        - Harbor Security:
+            icon: sh-harbor
+            href: https://allaboard.rtm.kubernative.io
+            description: Image Vulnerability Scans
+            widget:
+              type: customapi
+              url: http://harbor-core.harbor:80/api/v2.0/projects/library/summary
+              username: "{{HOMEPAGE_VAR_HARBOR_USER}}"
+              password: "{{HOMEPAGE_VAR_HARBOR_PASS}}"
+              refreshInterval: 60000
+              mappings:
+                - field: repo_count
+                  label: Repositories
+                  format: number
+    - Monitoring:
+        - Grafana-Loki Stack:
+            icon: si-grafana
+            href: https://grafana.rtm.kubernative.io
+            description: Logging Infrastructure
+            widget:
+              type: prometheusmetric
+              url: http://prometheus-stack-kube-prom-prometheus.monitoring:9090
+              refreshInterval: 30000
+              metrics:
+                - label: Loki CPU
+                  query: sum(rate(container_cpu_usage_seconds_total{namespace="logging",pod=~"loki.*",container!=""}[5m])) * 1000
+                  format:
+                    type: number
+                    suffix: " m"
+                    options:
+                      maximumFractionDigits: 0
+                - label: Loki Memory
+                  query: sum(container_memory_working_set_bytes{namespace="logging",pod=~"loki.*",container!=""}) / 1024 / 1024
+                  format:
+                    type: number
+                    suffix: " Mi"
+                    options:
+                      maximumFractionDigits: 0
+                - label: Grafana CPU
+                  query: sum(rate(container_cpu_usage_seconds_total{namespace="monitoring",pod=~"prometheus-stack-grafana.*",container!=""}[5m])) * 1000
+                  format:
+                    type: number
+                    suffix: " m"
+                    options:
+                      maximumFractionDigits: 0
+                - label: Grafana Mem
+                  query: sum(container_memory_working_set_bytes{namespace="monitoring",pod=~"prometheus-stack-grafana.*",container!=""}) / 1024 / 1024
+                  format:
+                    type: number
+                    suffix: " Mi"
+                    options:
+                      maximumFractionDigits: 0
+        - Namespace Memory:
+            icon: mdi-memory
+            description: Top namespaces by RAM
+            widget:
+              type: prometheusmetric
+              url: http://prometheus-stack-kube-prom-prometheus.monitoring:9090
+              refreshInterval: 30000
+              metrics:
+                - label: monitoring
+                  query: sum(container_memory_working_set_bytes{namespace="monitoring",container!=""}) / 1024 / 1024
+                  format:
+                    type: number
+                    suffix: " Mi"
+                    options:
+                      maximumFractionDigits: 0
+                - label: argocd
+                  query: sum(container_memory_working_set_bytes{namespace="argocd",container!=""}) / 1024 / 1024
+                  format:
+                    type: number
+                    suffix: " Mi"
+                    options:
+                      maximumFractionDigits: 0
+                - label: logging
+                  query: sum(container_memory_working_set_bytes{namespace="logging",container!=""}) / 1024 / 1024
+                  format:
+                    type: number
+                    suffix: " Mi"
+                    options:
+                      maximumFractionDigits: 0
+                - label: gitea
+                  query: sum(container_memory_working_set_bytes{namespace="gitea",container!=""}) / 1024 / 1024
+                  format:
+                    type: number
+                    suffix: " Mi"
+                    options:
+                      maximumFractionDigits: 0
+        - Namespace CPU:
+            icon: mdi-chip
+            description: Top namespaces by CPU
+            widget:
+              type: prometheusmetric
+              url: http://prometheus-stack-kube-prom-prometheus.monitoring:9090
+              refreshInterval: 30000
+              metrics:
+                - label: monitoring
+                  query: sum(rate(container_cpu_usage_seconds_total{namespace="monitoring",container!=""}[5m])) * 1000
+                  format:
+                    type: number
+                    suffix: " m"
+                    options:
+                      maximumFractionDigits: 0
+                - label: argocd
+                  query: sum(rate(container_cpu_usage_seconds_total{namespace="argocd",container!=""}[5m])) * 1000
+                  format:
+                    type: number
+                    suffix: " m"
+                    options:
+                      maximumFractionDigits: 0
+                - label: kube-system
+                  query: sum(rate(container_cpu_usage_seconds_total{namespace="kube-system",container!=""}[5m])) * 1000
+                  format:
+                    type: number
+                    suffix: " m"
+                    options:
+                      maximumFractionDigits: 0
+                - label: gitea
+                  query: sum(rate(container_cpu_usage_seconds_total{namespace="gitea",container!=""}[5m])) * 1000
+                  format:
+                    type: number
+                    suffix: " m"
+                    options:
+                      maximumFractionDigits: 0
+        - Node Resources:
+            icon: mdi-server
+            description: Node memory & CPU usage
+            widget:
+              type: prometheusmetric
+              url: http://prometheus-stack-kube-prom-prometheus.monitoring:9090
+              refreshInterval: 15000
+              metrics:
+                - label: Memory Used
+                  query: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100
+                  format:
+                    type: number
+                    suffix: "%"
+                    options:
+                      maximumFractionDigits: 1
+                - label: CPU Load (5m)
+                  query: 100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+                  format:
+                    type: number
+                    suffix: "%"
+                    options:
+                      maximumFractionDigits: 1
+                - label: Disk Used
+                  query: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100
+                  format:
+                    type: number
+                    suffix: "%"
+                    options:
+                      maximumFractionDigits: 1
+                - label: Network RX
+                  query: rate(node_network_receive_bytes_total{device=~"eth.*|eno.*|enp.*"}[5m]) / 1024
+                  format:
+                    type: number
+                    suffix: " KB/s"
+                    options:
+                      maximumFractionDigits: 1
+    - Cluster Panels:
+        - CPU Resources:
+            icon: mdi-chip
+            href: https://grafana.rtm.kubernative.io/d/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster
+            description: CPU usage, requests, limits by namespace
+            widget:
+              type: iframe
+              name: cpu-resources
+              src: https://grafana.rtm.kubernative.io/d-solo/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster?orgId=1&panelId=7&refresh=10s&kiosk&theme=dark
+              classes: h-96 sm:h-[28rem] md:h-[32rem] lg:h-[36rem]
+              referrerPolicy: same-origin
+              refreshInterval: 60000
+        - Memory Resources:
+            icon: mdi-memory
+            href: https://grafana.rtm.kubernative.io/d/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster
+            description: Memory usage, requests, limits by namespace
+            widget:
+              type: iframe
+              name: mem-resources
+              src: https://grafana.rtm.kubernative.io/d-solo/efa86fd1d0c121a26444b636a3f509a8/kubernetes-compute-resources-cluster?orgId=1&panelId=9&refresh=10s&kiosk&theme=dark
+              classes: h-96 sm:h-[28rem] md:h-[32rem] lg:h-[36rem]
+              referrerPolicy: same-origin
+              refreshInterval: 60000
+    - CI/CD:
+        - Tekton Pipelines:
+            icon: sh-tekton
+            href: https://tekton.rtm.kubernative.io/#/namespaces/tekton-pipelines/pipelineruns
+            siteMonitor: http://tekton-dashboard.tekton-pipelines:9097
+            statusStyle: dot
+            description: CI/CD Pipeline Runs (Dashboard Embed)
+            widget:
+              type: iframe
+              name: tekton
+              src: https://tekton.rtm.kubernative.io/#/namespaces/tekton-pipelines/pipelineruns
+              classes: h-96
+              referrerPolicy: same-origin
+              refreshInterval: 30000
+        - Harbor Registry:
+            icon: sh-harbor
+            href: https://allaboard.rtm.kubernative.io
+            description: Built Container Images
+            widget:
+              type: customapi
+              url: http://harbor-core.harbor:80/api/v2.0/statistics
+              username: "{{HOMEPAGE_VAR_HARBOR_USER}}"
+              password: "{{HOMEPAGE_VAR_HARBOR_PASS}}"
+              refreshInterval: 30000
+              mappings:
+                - field: total_repo_count
+                  label: Repos
+                  format: number
+                - field: total_storage_consumption
+                  label: Storage
+                  format: bytes
+        - Gitea:
+            icon: si-gitea
+            href: https://git.rtm.kubernative.io
+            description: Source Repositories
+            widget:
+              type: gitea
+              url: http://gitea-http.gitea:3000
+              key: "{{HOMEPAGE_VAR_GITEA_TOKEN}}"
+              fields: ["repositories", "issues", "pulls", "notifications"]
+        - GitHub Stats:
+            icon: si-github
+            href: https://github.com/smii/k3sdevlab
+            description: k3sdevlab Repository
+            widget:
+              type: customapi
+              url: https://api.github.com/repos/smii/k3sdevlab
+              refreshInterval: 120000
+              mappings:
+                - field: stargazers_count
+                  label: Stars
+                  format: number
+                - field: forks_count
+                  label: Forks
+                  format: number
+                - field: open_issues_count
+                  label: Open Issues
+                  format: number
+                - field: size
+                  label: Size (KB)
+                  format: number
+    - Operations:
+        - Loki Logs:
+            icon: mdi-text-box-search
+            href: https://grafana.rtm.kubernative.io/public-dashboards/100ac3db2e6a4e03b3779b5d9af3f177
+            description: Log Explorer (Grafana + Loki)
+            widget:
+              type: iframe
+              name: loki-logs
+              src: https://grafana.rtm.kubernative.io/public-dashboards/100ac3db2e6a4e03b3779b5d9af3f177?kiosk&theme=dark
+              classes: h-72 sm:h-80 md:h-96 lg:h-96
+              referrerPolicy: same-origin
+              refreshInterval: 30000
+        - System Logs:
+            icon: mdi-script-text-outline
+            href: https://grafana.rtm.kubernative.io/explore
+            description: Host systemd journal (journalctl)
+            widget:
+              type: iframe
+              name: systemlogs
+              src: https://grafana.rtm.kubernative.io/explore?schemaVersion=1&panes=%7B%22a%22:%7B%22datasource%22:%22loki%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Bjob%3D%5C%22systemd-journal%5C%22%7D%22,%22queryType%22:%22range%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D%7D&orgId=1&kiosk&theme=dark
+              classes: h-64
+              referrerPolicy: same-origin
+              refreshInterval: 30000
+        - Gitea Stats:
+            icon: si-gitea
+            href: https://git.rtm.kubernative.io
+            description: Repository Overview
+            widget:
+              type: gitea
+              url: http://gitea-http.gitea:3000
+              key: "{{HOMEPAGE_VAR_GITEA_TOKEN}}"
+              fields: ["repositories", "issues", "pulls", "notifications"]
+
+  widgets.yaml: |
+    - datetime:
+        text_size: xl
+        format:
+          dateStyle: short
+          timeStyle: short
+    - search:
+        provider: duckduckgo
+        target: _blank
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+          label: "k3s-cluster"
+        nodes:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+    - resources:
+        label: Node
+        cpu: true
+        memory: true
+        expanded: true
+        network: true
+
+  bookmarks.yaml: |
+    - Quick Links:
+        - GitHub:
+            - abbr: GH
+              href: https://github.com/smii/k3sdevlab
+        - Grafana Explore:
+            - abbr: GE
+              href: https://grafana.rtm.kubernative.io/explore
+        - ArgoCD:
+            - abbr: AG
+              href: https://argocd.rtm.kubernative.io
+
+  docker.yaml: ""
+  custom.css: |
+    /* ── Base: NOC dark glass aesthetic ─────────────────────────────── */
+    :root {
+      --accent: 139, 92, 246;       /* violet-500 */
+      --accent-glow: rgba(139, 92, 246, 0.25);
+      --border-subtle: rgba(139, 92, 246, 0.12);
+      --border-hover: rgba(139, 92, 246, 0.35);
+      --card-bg: rgba(15, 10, 30, 0.55);
+    }
+
+    /* ── Cards: glassmorphism lift ───────────────────────────────────── */
+    .service {
+      background: var(--card-bg) !important;
+      border: 1px solid var(--border-subtle) !important;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    }
+    .service:hover {
+      border-color: var(--border-hover) !important;
+      box-shadow: 0 0 18px var(--accent-glow), 0 4px 24px rgba(0,0,0,0.4) !important;
+      transform: translateY(-1px);
+    }
+
+    /* ── Section headers: accent left-border ────────────────────────── */
+    #section-header-title {
+      border-left: 3px solid rgba(var(--accent), 0.7);
+      padding-left: 0.6rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      opacity: 0.8;
+    }
+
+    /* ── Status dots: pulse on green ────────────────────────────────── */
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+      50%       { opacity: 0.85; box-shadow: 0 0 0 4px rgba(34,197,94,0); }
+    }
+    [class*="bg-green"] {
+      animation: pulse-dot 2.8s ease-in-out infinite;
+    }
+
+    /* ── Metric values: monospace tabular figures ────────────────────── */
+    .widget-block,
+    [class*="metric"],
+    [class*="stat"] {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+      font-family: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+      letter-spacing: -0.02em;
+    }
+
+    /* ── iframes: borderless glass inset ────────────────────────────── */
+    iframe {
+      border-radius: 0.6rem;
+      border: 1px solid var(--border-subtle) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    /* ── ArgoCD / status "danger" highlight: red glow ───────────────── */
+    [class*="text-red"],
+    [class*="bg-red"] {
+      text-shadow: 0 0 8px rgba(239,68,68,0.6);
+    }
+
+    /* ── Top widgets bar: slight glass overlay ───────────────────────── */
+    #information-widgets {
+      border-bottom: 1px solid var(--border-subtle);
+      backdrop-filter: blur(4px);
+    }
+  custom.js: ""

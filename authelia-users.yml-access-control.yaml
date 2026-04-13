@@ -1,0 +1,89 @@
+access_control:
+  default_policy: deny
+
+  rules:
+    # --- ADMINS: one_factor access to everything ---
+    - domain: "*.rtm.kubernative.io"
+      policy: one_factor
+      subject:
+        - "group:admins"
+
+    # --- VIEWERS: one_factor read-only to all apps ---
+    - domain: "*.rtm.kubernative.io"
+      policy: one_factor
+      subject:
+        - "group:viewers"
+
+    # --- ARGOCD: devops groups ---
+    - domain: "argocd.rtm.kubernative.io"
+      policy: one_factor
+      subject:
+        - "group:devops_dev"
+        - "group:devops_test"
+    - domain: "argocd.rtm.kubernative.io"
+      policy: two_factor
+      subject:
+        - "group:devops_prd"
+
+    # --- GRAFANA: platform groups ---
+    - domain: "grafana.rtm.kubernative.io"
+      policy: one_factor
+      subject:
+        - "group:platform_dev"
+        - "group:platform_test"
+        - "group:homelab_dev"
+        - "group:homelab_test"
+        - "group:devops_dev"
+        - "group:devops_test"
+    - domain: "grafana.rtm.kubernative.io"
+      policy: two_factor
+      subject:
+        - "group:platform_prd"
+        - "group:homelab_prd"
+        - "group:devops_prd"
+
+    # --- GITEA: devops + homelab groups ---
+    - domain: "git.rtm.kubernative.io"
+      policy: one_factor
+      subject:
+        - "group:devops_dev"
+        - "group:devops_test"
+        - "group:homelab_dev"
+        - "group:homelab_test"
+        - "group:webapp_dev"
+        - "group:webapp_test"
+        - "group:platform_dev"
+        - "group:platform_test"
+    - domain: "git.rtm.kubernative.io"
+      policy: two_factor
+      subject:
+        - "group:devops_prd"
+        - "group:homelab_prd"
+        - "group:webapp_prd"
+        - "group:platform_prd"
+
+    # --- HARBOR: webapp + devops groups ---
+    - domain: "notary.allaboard.rtm.kubernative.io"
+      policy: one_factor
+      subject:
+        - "group:webapp_dev"
+        - "group:webapp_test"
+        - "group:devops_dev"
+        - "group:devops_test"
+    - domain: "notary.allaboard.rtm.kubernative.io"
+      policy: two_factor
+      subject:
+        - "group:webapp_prd"
+        - "group:devops_prd"
+
+    # --- ALL OTHER *.rtm.kubernative.io apps (authelia, traefik dashboard, etc.) ---
+    # homelab groups cover everything else
+    - domain: "*.rtm.kubernative.io"
+      policy: one_factor
+      subject:
+        - "group:homelab_dev"
+        - "group:homelab_test"
+    - domain: "*.rtm.kubernative.io"
+      policy: two_factor
+      subject:
+        - "group:homelab_prd"

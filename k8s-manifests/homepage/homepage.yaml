@@ -1,0 +1,166 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: homepage-secrets
+  namespace: homepage
+  labels:
+    app.kubernetes.io/name: homepage
+type: Opaque
+stringData:
+  HOMEPAGE_VAR_ARGOCD_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJob21lcGFnZTphcGlLZXkiLCJuYmYiOjE3NzUxMzU4NjksImlhdCI6MTc3NTEzNTg2OSwianRpIjoiODEwNDJhMGMtZWNmZi00N2IxLWJlZTAtYTk0MzEzNjE5Y2Y5In0.JqheGWken7sf9VS0isp9x_PuGNdOYTOABls59Ok_fz8"
+  HOMEPAGE_VAR_GITEA_TOKEN: "d968a60d4a5ef3679f0800c550c85356713cf2fd"
+  HOMEPAGE_VAR_GRAFANA_USER: "admin"
+  HOMEPAGE_VAR_GRAFANA_PASS: "jwnJbWwGoScn8RZlGcdE"
+  HOMEPAGE_VAR_CROWDSEC_USER: "crowdsec-lapi-5b845d5667-v2sn4"
+  HOMEPAGE_VAR_CROWDSEC_PASS: "zszOI6JxFcuLsz3PcquYJh5DVwahkhSUHmeeAwz6xyTSYunaRRXItw6xyYs5jtVP"
+  HOMEPAGE_VAR_HARBOR_USER: "admin"
+  HOMEPAGE_VAR_HARBOR_PASS: "Harbor12345"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: homepage
+  labels:
+    app.kubernetes.io/name: homepage
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: homepage
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: homepage
+    spec:
+      serviceAccountName: homepage
+      automountServiceAccountToken: true
+      dnsPolicy: ClusterFirst
+      containers:
+        - name: homepage
+          image: ghcr.io/gethomepage/homepage:v1.2.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          envFrom:
+            - secretRef:
+                name: homepage-secrets
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: HOMEPAGE_ALLOWED_HOSTS
+              value: "$(MY_POD_IP):3000,portal.rtm.kubernative.io"
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - mountPath: /app/config/custom.js
+              name: homepage-config
+              subPath: custom.js
+            - mountPath: /app/config/custom.css
+              name: homepage-config
+              subPath: custom.css
+            - mountPath: /app/config/bookmarks.yaml
+              name: homepage-config
+              subPath: bookmarks.yaml
+            - mountPath: /app/config/docker.yaml
+              name: homepage-config
+              subPath: docker.yaml
+            - mountPath: /app/config/kubernetes.yaml
+              name: homepage-config
+              subPath: kubernetes.yaml
+            - mountPath: /app/config/services.yaml
+              name: homepage-config
+              subPath: services.yaml
+            - mountPath: /app/config/settings.yaml
+              name: homepage-config
+              subPath: settings.yaml
+            - mountPath: /app/config/widgets.yaml
+              name: homepage-config
+              subPath: widgets.yaml
+            - mountPath: /app/config/logs
+              name: logs
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: homepage-config
+          configMap:
+            name: homepage
+        - name: logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepage
+  namespace: homepage
+  labels:
+    app.kubernetes.io/name: homepage
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: homepage
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homepage
+  namespace: homepage
+  labels:
+    app.kubernetes.io/name: homepage
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: portal.rtm.kubernative.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: homepage
+                port:
+                  number: 3000
+  tls:
+    - secretName: homepage-tls
+      hosts:
+        - portal.rtm.kubernative.io
