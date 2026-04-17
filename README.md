@@ -1,4 +1,4 @@
-# K3s Homelab — Self-Hosted Private Coding Environment
+# K3s  — Self-Hosted Private Coding Environment
 
 A ready-to-go, self-hosted coding environment built on K3s and managed entirely through ArgoCD GitOps. It ships with everything a small engineering team needs out of the box: Git hosting, a container registry, CI/CD pipelines, remote development workspaces, full observability, and runtime security — all behind a single SSO layer.
 
