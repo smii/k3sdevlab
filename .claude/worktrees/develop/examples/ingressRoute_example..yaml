@@ -1,0 +1,19 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hugo-bloggert
+  namespace: bloggert
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`blog.rtm.kubernative.io`)
+      kind: Rule
+      services:
+        - name: hugo-bloggert
+          port: 1313
+      middlewares:
+        - name: bloggert-lan-whitelist
+  tls:
+    secretName: blog.rtm.kubernative.io-tls
+

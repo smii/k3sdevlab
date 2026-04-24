@@ -1,0 +1,59 @@
+Authelia Users Configuration Summary
+===================================
+
+Generated on: Sun Mar 29 2026
+Config file: config/organizations.yaml
+Output file: authelia-users.yml
+
+Group Structure (AD-mappable, underscore naming):
+  cross-cutting: admins, viewers
+
+  homelab:   homelab_dev, homelab_test, homelab_prd
+  webapp:    webapp_dev,  webapp_test,  webapp_prd
+  devops:    devops_dev,  devops_test,  devops_prd
+  platform:  platform_dev, platform_test, platform_prd
+
+Personas (14 users):
+  smii    — admins + all _prd groups      (Owner / System Admin)
+  alice   — homelab_dev                   (Developer)
+  bob     — homelab_test                  (QA Engineer)
+  carol   — homelab_prd                   (Ops)
+  dave    — webapp_dev                    (Developer)
+  eve     — webapp_test                   (QA Engineer)
+  frank   — webapp_prd                    (Ops)
+  grace   — devops_dev                    (Developer)
+  henry   — devops_test                   (QA Engineer)
+  ivan    — devops_prd                    (Ops)
+  judy    — platform_dev                  (Developer)
+  karl    — platform_test                 (QA Engineer)
+  linda   — platform_prd                  (Ops)
+  viewer  — viewers                       (Read Only)
+
+Access Control:
+  admins/viewers: one_factor to *.rtm.kubernative.io
+  *_dev / *_test:  one_factor to their respective domains
+  *_prd:           two_factor to their respective domains
+
+Notifier: filesystem (/tmp/authelia-notifications.log) — no SMTP required
+2FA:      TOTP only (WebAuthn disabled)
+
+Security Notes:
+- All test users share password 'Homelab2024!' (argon2id hash)
+- Run scripts/generate-authelia-users.sh to regenerate with a fresh hash
+- Do not use these credentials in production
+
+Current Status (as of 2026-03-29):
+  ✅ K8s secret 'authelia-users' applied in namespace 'authelia'
+  ✅ Authelia pod running (v4.39.16), reading users from secret via extraVolumeMounts
+  ✅ Traefik ForwardAuth middleware applied (authelia/forwardauth)
+  ✅ All ArgoCD apps Synced + Healthy
+  ✅ Gitea OAuth2 source configured (auth source ID 3)
+  ✅ SSO test: 14/14 personas authenticate successfully
+
+Pending (manual action required):
+  ⏳ TOTP enrollment for *_prd users (carol, frank, ivan, linda):
+     - Login at https://authelia.rtm.kubernative.io with Homelab2024!
+     - Read enrollment link: kubectl exec -n authelia deployment/authelia -- cat /tmp/authelia-notifications.log
+
+To regenerate users (e.g. after password change):
+  scripts/generate-authelia-users.sh

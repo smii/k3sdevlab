@@ -1,0 +1,38 @@
+# Development Environment Overlay
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - ../../applications/core
+  - ../../applications/monitoring
+  - ../../applications/apps
+  - ../../applications/security
+  - ../../projects
+
+patches:
+  # Development-specific patches
+  - target:
+      kind: Application
+      name: ".*"
+    patch: |
+      - op: add
+        path: /metadata/labels/environment
+        value: dev
+      - op: replace
+        path: /spec/syncPolicy/automated/prune
+        value: false  # More conservative in dev
+  
+  # Resource limits for dev environment
+  - target:
+      kind: Application
+      name: prometheus-stack
+    patch: |
+      - op: add
+        path: /spec/source/helm/parameters
+        value:
+          - name: prometheus.prometheusSpec.resources.requests.memory
+            value: "512Mi"
+          - name: prometheus.prometheusSpec.resources.limits.memory
+            value: "1Gi"

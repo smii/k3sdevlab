@@ -1,0 +1,45 @@
+# ArgoCD RBAC Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  # Default policy: role:readonly
+  policy.default: role:readonly
+  
+  # RBAC Policies
+  policy.csv: |
+    # Admin group - full access
+    p, role:admin, applications, *, */*, allow
+    p, role:admin, clusters, *, *, allow
+    p, role:admin, repositories, *, *, allow
+    p, role:admin, certificates, *, *, allow
+    p, role:admin, projects, *, *, allow
+    
+    # Developer group - application management
+    p, role:developer, applications, get, */*, allow
+    p, role:developer, applications, sync, */*, allow
+    p, role:developer, applications, action/*, */*, allow
+    p, role:developer, repositories, get, *, allow
+    
+    # Viewer group - read-only access
+    p, role:viewer, applications, get, */*, allow
+    p, role:viewer, repositories, get, *, allow
+    p, role:viewer, clusters, get, *, allow
+    p, role:viewer, projects, get, *, allow
+    
+    # Group mappings (adjust based on your identity provider)
+    g, homelab:admin, role:admin
+    g, homelab:developers, role:developer
+    g, homelab:viewers, role:viewer
+    
+    # Project-specific policies
+    p, role:core-admin, applications, *, core-infrastructure/*, allow
+    p, role:monitoring-admin, applications, *, monitoring/*, allow
+    p, role:security-admin, applications, *, security/*, allow
+    
+    # Assign project roles to groups
+    g, homelab:core-admins, role:core-admin
+    g, homelab:monitoring-team, role:monitoring-admin
+    g, homelab:security-team, role:security-admin

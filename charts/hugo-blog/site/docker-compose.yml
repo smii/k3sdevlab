@@ -1,0 +1,17 @@
+services:
+  hugo:
+    build: .
+    container_name: hugo
+    ports:
+      - 1313:1313
+    volumes:
+      - ./:/src
+      - signal-scrape-data:/data_volume:ro
+    command: server --buildDrafts --buildFuture --bind 0.0.0.0 --baseURL lz.dev.kubernative.io --appendPort=false
+    user: "${UID}:${GID}"
+volumes:
+  signal-scrape-data: 
+networks:
+  default:
+    external: true
+    name: thematrix

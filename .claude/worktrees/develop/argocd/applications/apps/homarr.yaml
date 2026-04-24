@@ -1,0 +1,43 @@
+# Homarr — Homelab Portal Dashboard
+# Access: https://portal.rtm.kubernative.io
+# SSO: Authelia forward-auth (wildcard rule covers admins/viewers)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homarr
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/part-of: applications
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: applications
+  sources:
+    - repoURL: https://oben01.github.io/charts/
+      chart: homarr
+      targetRevision: "1.*"
+      helm:
+        valueFiles:
+          - $values/charts/homarr/homarr-values.yaml
+    - repoURL: https://github.com/smii/k3sdevlab
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: homarr
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m

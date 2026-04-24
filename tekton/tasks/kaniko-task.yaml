@@ -1,0 +1,97 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: kaniko
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/version: "0.6"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.50.0"
+    tekton.dev/categories: Image Build
+    tekton.dev/tags: image-build
+    tekton.dev/displayName: "Build and push with Kaniko"
+spec:
+  description: >-
+    Build a container image from a Dockerfile using Kaniko and push it to a
+    registry. Kaniko does not require a Docker daemon and runs unprivileged
+    inside a Kubernetes pod, making it suitable for K3s.
+
+  params:
+    - name: IMAGE
+      description: Full image reference to build and push (registry/project/name:tag).
+      type: string
+    - name: DOCKERFILE
+      description: Path to the Dockerfile relative to the build context.
+      type: string
+      default: ./Dockerfile
+    - name: CONTEXT
+      description: Path to the build context directory inside the 'source' workspace.
+      type: string
+      default: .
+    - name: EXTRA_ARGS
+      description: Additional flags to pass to the kaniko executor (space-separated).
+      type: array
+      default: []
+
+  workspaces:
+    - name: source
+      description: Workspace containing the cloned source code.
+    - name: docker-credentials
+      description: >-
+        Workspace backed by a docker-registry Secret. Kaniko expects the
+        .dockerconfigjson file to be present at /kaniko/.docker/config.json.
+        The task copies the secret into place before building.
+
+  results:
+    - name: IMAGE_DIGEST
+      description: Digest of the image built and pushed by kaniko.
+    - name: IMAGE_URL
+      description: Full URL of the image that was pushed.
+
+  steps:
+    - name: copy-docker-config
+      image: busybox:1.36
+      computeResources: {}
+      script: |
+        #!/bin/sh
+        set -e
+        mkdir -p /kaniko/.docker
+        if [ -f "$(workspaces.docker-credentials.path)/.dockerconfigjson" ]; then
+          cp "$(workspaces.docker-credentials.path)/.dockerconfigjson" /kaniko/.docker/config.json
+        elif [ -f "$(workspaces.docker-credentials.path)/config.json" ]; then
+          cp "$(workspaces.docker-credentials.path)/config.json" /kaniko/.docker/config.json
+        else
+          echo "No docker config found in docker-credentials workspace" >&2
+          exit 1
+        fi
+        chmod 600 /kaniko/.docker/config.json
+      volumeMounts:
+        - name: kaniko-docker-config
+          mountPath: /kaniko/.docker
+
+    - name: build-and-push
+      image: gcr.io/kaniko-project/executor:latest
+      computeResources: {}
+      args:
+        - --dockerfile=$(params.DOCKERFILE)
+        - --context=$(workspaces.source.path)/$(params.CONTEXT)
+        - --destination=$(params.IMAGE)
+        - --digest-file=$(results.IMAGE_DIGEST.path)
+        - --skip-tls-verify
+        - $(params.EXTRA_ARGS[*])
+      volumeMounts:
+        - name: kaniko-docker-config
+          mountPath: /kaniko/.docker
+      securityContext:
+        runAsUser: 0
+
+    - name: write-image-url
+      image: busybox:1.36
+      computeResources: {}
+      script: |
+        #!/bin/sh
+        printf '%s' "$(params.IMAGE)" > "$(results.IMAGE_URL.path)"
+
+  volumes:
+    - name: kaniko-docker-config
+      emptyDir: {}

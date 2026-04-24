@@ -1,0 +1,16 @@
+# Repository Configuration
+# Add private repositories here
+apiVersion: v1
+kind: Secret
+metadata:
+  name: homelab-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  type: git
+  url: git@github.com:smii/k3sdevlab.git
+  # For private repositories, add:
+  # username: your-username
+  # password: your-token

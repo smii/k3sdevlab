@@ -1,0 +1,221 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: openvscode-server-data
+  namespace: code-server
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: openvscode-server
+  namespace: code-server
+  labels:
+    app.kubernetes.io/name: openvscode-server
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openvscode-server
+  namespace: code-server
+  labels:
+    app.kubernetes.io/name: openvscode-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openvscode-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openvscode-server
+      annotations:
+        container.apparmor.security.beta.kubernetes.io/openvscode-server: runtime/default
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+    spec:
+      serviceAccountName: openvscode-server
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: openvscode-server
+          image: gitpod/openvscode-server@sha256:5e7b8750749f282940a799ed59ccd02fac698ef6744f9113ac01c0ef8e76485e
+          imagePullPolicy: IfNotPresent
+          args:
+            - --host
+            - 0.0.0.0
+            - --port
+            - "3000"
+            - --without-connection-token
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          volumeMounts:
+            - name: data
+              mountPath: /home/workspace
+            - name: tmp
+              mountPath: /tmp
+            - name: vscode-tmp
+              mountPath: /home/workspace/.vscode-server
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+              ephemeral-storage: 5Gi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: openvscode-server-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: vscode-tmp
+          emptyDir:
+            sizeLimit: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openvscode-server
+  namespace: code-server
+  labels:
+    app.kubernetes.io/name: openvscode-server
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: openvscode-server
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: openvscode-server
+  namespace: code-server
+  labels:
+    app.kubernetes.io/name: openvscode-server
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: realcoder.rtm.kubernative.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: openvscode-server
+                port:
+                  number: 3000
+  tls:
+    - secretName: code-server-tls
+      hosts:
+        - realcoder.rtm.kubernative.io
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: openvscode-server
+  namespace: code-server
+  labels:
+    app.kubernetes.io/name: openvscode-server
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: openvscode-server
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow ingress from Traefik ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow HTTPS for extension downloads, git operations, etc.
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+    # Allow HTTP for extension marketplace
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 80
+    # Allow git protocol (for git operations)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 9418
+        - protocol: TCP
+          port: 22

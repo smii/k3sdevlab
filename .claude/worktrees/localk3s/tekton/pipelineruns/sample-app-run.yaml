@@ -1,0 +1,48 @@
+# Uncomment to trigger a manual build:
+# kubectl apply -f tekton/pipelineruns/sample-app-run.yaml
+#
+# Each apply creates a new PipelineRun (names are timestamped to avoid
+# conflicts). Delete completed runs to free workspace disk:
+#   kubectl delete pipelinerun -n tekton-pipelines --field-selector=status.conditions[0].reason==Succeeded
+#
+# ---
+# apiVersion: tekton.dev/v1
+# kind: PipelineRun
+# metadata:
+#   generateName: sample-app-build-push-
+#   namespace: tekton-pipelines
+#   labels:
+#     app.kubernetes.io/component: pipeline-run
+#     app.kubernetes.io/part-of: sample-app
+# spec:
+#   pipelineRef:
+#     name: sample-app-build-push
+#
+#   serviceAccountName: tekton-sa
+#
+#   params:
+#     - name: image-url
+#       value: allaboard.rtm.kubernative.io/library/sample-app:latest
+#     - name: git-url
+#       value: https://git.rtm.kubernative.io/smii/k3sdevlab
+#     - name: git-revision
+#       value: develop
+#     - name: context
+#       value: apps/sample-app
+#
+#   workspaces:
+#     # Shared workspace for source code — backed by the PVC created in
+#     # tekton/workspaces/pipeline-pvc.yaml
+#     - name: source
+#       persistentVolumeClaim:
+#         claimName: pipeline-source-workspace
+#
+#     # Harbor registry credentials — backed by the docker-registry Secret
+#     # created via:
+#     #   kubectl create secret docker-registry harbor-credentials \
+#     #     --docker-server=allaboard.rtm.kubernative.io \
+#     #     --docker-username=<user> --docker-password=<pass> \
+#     #     -n tekton-pipelines
+#     - name: docker-credentials
+#       secret:
+#         secretName: harbor-credentials

@@ -1,0 +1,123 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: git-clone
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/version: "1.0"
+  annotations:
+    tekton.dev/displayName: "git clone"
+    tekton.dev/tags: git
+spec:
+  description: >-
+    Clones a git repository into the output workspace using alpine/git.
+    Supports branch, tag, or commit SHA checkout. Optionally skips SSL verification.
+  params:
+    - name: url
+      description: Repository URL to clone from.
+      type: string
+    - name: revision
+      description: Revision to checkout (branch, tag, sha, ref).
+      type: string
+      default: ""
+    - name: sslVerify
+      description: Set to "false" to skip SSL verification.
+      type: string
+      default: "true"
+    - name: deleteExisting
+      description: Delete the contents of the output workspace before cloning.
+      type: string
+      default: "true"
+    - name: subdirectory
+      description: Subdirectory inside the output workspace to clone into.
+      type: string
+      default: ""
+    - name: depth
+      description: Number of commits to fetch (0 = full history).
+      type: string
+      default: "1"
+  results:
+    - name: commit
+      description: The precise commit SHA that was fetched.
+    - name: url
+      description: The URL that was cloned.
+  workspaces:
+    - name: output
+      description: The git repo is cloned onto this workspace.
+    - name: basic-auth
+      optional: true
+      description: >-
+        A workspace containing .gitconfig and .git-credentials files for
+        authenticating with the git remote. Bind a Secret with those keys.
+  steps:
+    - name: clone
+      image: alpine/git:2.45.2
+      computeResources: {}
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      env:
+        - name: HOME
+          value: /tmp
+        - name: PARAM_URL
+          value: $(params.url)
+        - name: PARAM_REVISION
+          value: $(params.revision)
+        - name: PARAM_SSL_VERIFY
+          value: $(params.sslVerify)
+        - name: PARAM_DELETE_EXISTING
+          value: $(params.deleteExisting)
+        - name: PARAM_SUBDIRECTORY
+          value: $(params.subdirectory)
+        - name: PARAM_DEPTH
+          value: $(params.depth)
+        - name: WORKSPACE_OUTPUT_PATH
+          value: $(workspaces.output.path)
+        - name: WORKSPACE_BASIC_AUTH_BOUND
+          value: $(workspaces.basic-auth.bound)
+        - name: WORKSPACE_BASIC_AUTH_PATH
+          value: $(workspaces.basic-auth.path)
+      script: |
+        #!/bin/sh
+        set -eu
+
+        # Set up basic-auth credentials if workspace is bound
+        if [ "${WORKSPACE_BASIC_AUTH_BOUND}" = "true" ]; then
+          cp "${WORKSPACE_BASIC_AUTH_PATH}/.gitconfig" /tmp/.gitconfig
+          cp "${WORKSPACE_BASIC_AUTH_PATH}/.git-credentials" /tmp/.git-credentials
+          chmod 400 /tmp/.git-credentials
+        fi
+
+        CHECKOUT_DIR="${WORKSPACE_OUTPUT_PATH}/${PARAM_SUBDIRECTORY}"
+
+        if [ "${PARAM_DELETE_EXISTING}" = "true" ] && [ -d "${CHECKOUT_DIR}" ]; then
+          find "${CHECKOUT_DIR}" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+        fi
+
+        mkdir -p "${CHECKOUT_DIR}"
+
+        git config --global http.sslVerify "${PARAM_SSL_VERIFY}"
+        git config --global --add safe.directory '*'
+
+        DEPTH_ARG=""
+        if [ "${PARAM_DEPTH}" != "0" ]; then
+          DEPTH_ARG="--depth=${PARAM_DEPTH}"
+        fi
+
+        if [ -n "${PARAM_REVISION}" ]; then
+          git clone ${DEPTH_ARG} --branch "${PARAM_REVISION}" "${PARAM_URL}" "${CHECKOUT_DIR}"
+        else
+          git clone ${DEPTH_ARG} "${PARAM_URL}" "${CHECKOUT_DIR}"
+        fi
+
+        cd "${CHECKOUT_DIR}"
+        RESULT_SHA="$(git rev-parse HEAD)"
+        printf "%s" "${RESULT_SHA}" > "$(results.commit.path)"
+        printf "%s" "${PARAM_URL}" > "$(results.url.path)"
+        echo "Cloned ${PARAM_URL} @ ${RESULT_SHA}"

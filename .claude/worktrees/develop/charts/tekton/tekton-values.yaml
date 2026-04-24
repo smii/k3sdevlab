@@ -1,0 +1,7 @@
+# Tekton Pipelines Helm values
+# Minimal config — defaults are sufficient for a single-node K3s cluster.
+# The pipeline controller, webhook, and triggers components are enabled by default.
+
+pipeline:
+  # Feature flags — leave at defaults for standard behaviour
+  params: []

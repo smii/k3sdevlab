@@ -1,0 +1,37 @@
+# Homepage — Homelab Portal Dashboard (gethomepage.dev)
+# Access: https://portal.rtm.kubernative.io
+# Auth: Authelia forward-auth
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homepage
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: dashboard
+    app.kubernetes.io/part-of: applications
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: applications
+  sources:
+    - repoURL: https://github.com/smii/k3sdevlab
+      targetRevision: HEAD
+      path: k8s-manifests/homepage
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: homepage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m

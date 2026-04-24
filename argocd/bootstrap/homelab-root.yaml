@@ -1,0 +1,27 @@
+# Root ArgoCD Application - App of Apps Pattern
+# This is the main application that deploys all other applications
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homelab-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: ${GITHUB_REPO}
+    path: argocd/applications
+    targetRevision: HEAD
+    directory:
+      recurse: true
+      include: '{core,monitoring,apps,security}/*.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

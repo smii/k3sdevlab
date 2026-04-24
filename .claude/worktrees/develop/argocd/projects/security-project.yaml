@@ -1,0 +1,36 @@
+# Security Project
+# Security and authentication related applications
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: security
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Security, authentication, and authorization applications
+  sourceRepos:
+  - 'https://github.com/smii/k3sdevlab'
+  - 'https://charts.authelia.com'
+  - 'https://crowdsecurity.github.io/helm-charts'
+  - 'https://falcosecurity.github.io/charts'
+  destinations:
+  - namespace: 'authelia'
+    server: https://kubernetes.default.svc
+  - namespace: 'crowdsec'
+    server: https://kubernetes.default.svc
+  - namespace: 'falco'
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  roles:
+  - name: security-admin
+    description: Security administrator role
+    policies:
+    - p, proj:security:security-admin, applications, *, security/*, allow
+    groups:
+    - homelab:security-admins

@@ -1,0 +1,55 @@
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+.env_test
+*.env
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Logs
+*.log
+logs/
+
+# Kubernetes secrets (if any local copies)
+secrets/
+*.secret
+
+# Helm cache
+.helm/
+
+# ArgoCD local config (if any)
+.argocd/
+
+# Test outputs
+test-results/
+coverage/
+
+# Vagrant
+.vagrant/

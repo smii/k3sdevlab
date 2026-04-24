@@ -1,0 +1,57 @@
+# Coder — Remote Development Environment
+# Access: https://realcoder.rtm.kubernative.io
+# SSO: Authelia OIDC (client_id: coder)
+# PostgreSQL: plain postgres:16-alpine StatefulSet (k8s-manifests/coder-postgres/)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: coder
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: remote-dev
+    app.kubernetes.io/part-of: applications
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: applications
+  sources:
+    - repoURL: https://github.com/smii/k3sdevlab
+      targetRevision: HEAD
+      path: k8s-manifests/coder-postgres
+    - repoURL: https://helm.coder.com/v2
+      chart: coder
+      targetRevision: "2.*"
+      helm:
+        valueFiles:
+          - $values/charts/coder/coder-values.yaml
+    - repoURL: https://github.com/smii/k3sdevlab
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: coder
+  ignoreDifferences:
+    - group: ""
+      kind: Service
+      name: coder
+      namespace: coder
+      jqPathExpressions:
+        - .spec.ports[].nodePort
+        - .spec.clusterIP
+        - .spec.clusterIPs
+        - .spec.allocateLoadBalancerNodePorts
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

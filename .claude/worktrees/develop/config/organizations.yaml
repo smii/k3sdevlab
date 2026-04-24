@@ -1,0 +1,46 @@
+# config/organizations.yaml
+# Source of truth for all projects, groups, and personas.
+# Group naming: <project>_dev | <project>_test | <project>_prd
+# Maps directly to external AD group names.
+
+projects:
+  - name: homelab
+    description: "Core homelab infrastructure"
+    groups:
+      - homelab_dev
+      - homelab_test
+      - homelab_prd
+    protected_domains:
+      - "*.rtm.kubernative.io"
+
+  - name: webapp
+    description: "Web applications project"
+    groups:
+      - webapp_dev
+      - webapp_test
+      - webapp_prd
+    protected_domains:
+      - "notary.allaboard.rtm.kubernative.io"
+
+  - name: devops
+    description: "DevOps tooling and pipelines"
+    groups:
+      - devops_dev
+      - devops_test
+      - devops_prd
+    protected_domains:
+      - "git.rtm.kubernative.io"
+      - "argocd.rtm.kubernative.io"
+
+  - name: platform
+    description: "Platform and observability"
+    groups:
+      - platform_dev
+      - platform_test
+      - platform_prd
+    protected_domains:
+      - "grafana.rtm.kubernative.io"
+
+cross_cutting_groups:
+  - admins       # Full access to everything, 1-factor
+  - viewers      # Read-only across all apps, 1-factor

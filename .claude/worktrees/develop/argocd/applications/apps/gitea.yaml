@@ -1,0 +1,65 @@
+# Gitea Git Repository
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gitea
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: git-repository
+    app.kubernetes.io/part-of: devops-tools
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: applications
+  sources:
+    - repoURL: https://dl.gitea.io/charts/
+      chart: gitea
+      targetRevision: "12.4.0"
+      helm:
+        valueFiles:
+          - $values/charts/gitea/gitea-values.yaml
+    - repoURL: https://github.com/smii/k3sdevlab
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gitea
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: gitea
+      namespace: gitea
+      jqPathExpressions:
+        - '.spec.template.spec.securityContext.fsGroup'
+        - '.spec.template.spec.containers[].resources.limits'
+        - '.spec.template.spec.initContainers[].resources.limits'
+    - group: ""
+      kind: PersistentVolumeClaim
+      name: gitea-shared-storage
+      namespace: gitea
+      jqPathExpressions:
+        - '.spec.storageClassName'
+        - '.spec.volumeMode'
+    - group: apps
+      kind: StatefulSet
+      name: gitea-valkey-cluster
+      namespace: gitea
+      jqPathExpressions:
+        - '.spec.volumeClaimTemplates[].spec.volumeMode'
+        - '.spec.volumeClaimTemplates[].spec.storageClassName'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

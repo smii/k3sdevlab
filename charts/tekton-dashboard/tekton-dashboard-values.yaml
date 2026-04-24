@@ -1,0 +1,21 @@
+# Tekton Dashboard Helm values
+
+dashboard:
+  # Allow devops users to trigger pipeline runs from the UI
+  readOnly: false
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: tekton.rtm.kubernative.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: tekton-dashboard-tls
+      hosts:
+        - tekton.rtm.kubernative.io

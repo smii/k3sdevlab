@@ -1,0 +1,114 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: sample-app-build-push
+  namespace: tekton-pipelines
+  labels:
+    app.kubernetes.io/component: pipeline
+    app.kubernetes.io/part-of: sample-app
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.50.0"
+    tekton.dev/displayName: "Sample App — Clone, Build, and Push"
+spec:
+  description: >-
+    Clones the k3sdevlab repository from GitHub, builds the sample-app
+    container image with Kaniko, and pushes it to Harbor via the internal
+    service URL (harbor-core.harbor:80) to bypass Traefik/Authelia. Uses
+    --insecure since the internal service is plain HTTP.
+
+  params:
+    - name: image-url
+      description: Full image reference to build and push.
+      type: string
+      default: harbor-core.harbor/library/sample-app:latest
+    - name: git-url
+      description: Git repository URL to clone.
+      type: string
+      default: https://github.com/smii/k3sdevlab.git
+    - name: git-revision
+      description: Branch, tag, or commit SHA to check out.
+      type: string
+      default: develop
+    - name: context
+      description: >-
+        Path inside the cloned repository to use as the kaniko build context.
+        The Dockerfile must exist at this path.
+      type: string
+      default: apps/sample-app
+
+  workspaces:
+    - name: source
+      description: >-
+        Shared workspace used to pass the cloned source from the git-clone task
+        to the build-and-push task.
+    - name: docker-credentials
+      description: >-
+        Workspace backed by the 'harbor-credentials' docker-registry Secret.
+        Kaniko reads the registry auth from here.
+    - name: git-credentials
+      description: >-
+        Optional basic-auth workspace for cloning private git repos.
+        Bind a Secret with .gitconfig and .git-credentials keys.
+      optional: true
+
+  tasks:
+    # ── Task 1: Clone the repository ─────────────────────────────────────────
+    - name: git-clone
+      taskRef:
+        resolver: cluster
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: namespace
+            value: tekton-pipelines
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+        - name: deleteExisting
+          value: "true"
+        # Gitea uses a valid Let's Encrypt cert on rtm.kubernative.io, but set
+        # sslVerify false as a safety net for local/dev overrides.
+        - name: sslVerify
+          value: "false"
+      workspaces:
+        - name: output
+          workspace: source
+        - name: basic-auth
+          workspace: git-credentials
+
+    # ── Task 2: Build image with Kaniko and push to Harbor ───────────────────
+    - name: build-and-push
+      taskRef:
+        kind: Task
+        name: kaniko
+      runAfter:
+        - git-clone
+      params:
+        - name: IMAGE
+          value: $(params.image-url)
+        - name: CONTEXT
+          value: $(params.context)
+        - name: DOCKERFILE
+          value: ./Dockerfile
+        - name: EXTRA_ARGS
+          value:
+            - --insecure
+            - --cache=true
+            - --cache-repo=harbor-core.harbor/library/sample-app-cache
+      workspaces:
+        - name: source
+          workspace: source
+        - name: docker-credentials
+          workspace: docker-credentials
+
+  results:
+    - name: IMAGE_DIGEST
+      description: Digest of the image built and pushed.
+      value: $(tasks.build-and-push.results.IMAGE_DIGEST)
+    - name: IMAGE_URL
+      description: Full URL of the image that was pushed.
+      value: $(tasks.build-and-push.results.IMAGE_URL)

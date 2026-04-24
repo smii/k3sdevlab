@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tekton-resources
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: ci-pipeline
+    app.kubernetes.io/part-of: devops-tools
+  annotations:
+    # Wave 4 — deploy after core infrastructure (waves 1-3) is ready.
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: homelab
+  source:
+    repoURL: https://github.com/smii/k3sdevlab
+    targetRevision: HEAD
+    path: tekton
+    directory:
+      recurse: true
+      # Do not auto-apply PipelineRuns — trigger them manually.
+      exclude: "**/pipelineruns/**"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tekton-pipelines
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  # The harbor-credentials Secret is created manually and must not be pruned.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: harbor-credentials
+      namespace: tekton-pipelines
+      jsonPointers:
+        - /data

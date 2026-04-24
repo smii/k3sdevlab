@@ -1,0 +1,92 @@
+users:
+  # All passwords are 'Homelab2024!' hashed with argon2id.
+  # To regenerate: docker run authelia/authelia:latest authelia crypto hash generate argon2 --password 'Homelab2024!'
+  # Hash below is reused for all test users (homelab — not production).
+  smii:
+    displayname: "System Administrator"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "mj.lopes@gmail.com"
+    groups:
+      - admins
+      - homelab_prd
+      - webapp_prd
+      - devops_prd
+      - platform_prd
+  alice:
+    displayname: "Alice Dev"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "alice@kubernative.io"
+    groups:
+      - homelab_dev
+  bob:
+    displayname: "Bob QA"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "bob@kubernative.io"
+    groups:
+      - homelab_test
+  carol:
+    displayname: "Carol Ops"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "carol@kubernative.io"
+    groups:
+      - homelab_prd
+  dave:
+    displayname: "Dave WebDev"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "dave@kubernative.io"
+    groups:
+      - webapp_dev
+  eve:
+    displayname: "Eve WebQA"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "eve@kubernative.io"
+    groups:
+      - webapp_test
+  frank:
+    displayname: "Frank WebOps"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "frank@kubernative.io"
+    groups:
+      - webapp_prd
+  grace:
+    displayname: "Grace DevopsEng"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "grace@kubernative.io"
+    groups:
+      - devops_dev
+  henry:
+    displayname: "Henry DevopsQA"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "henry@kubernative.io"
+    groups:
+      - devops_test
+  ivan:
+    displayname: "Ivan DevopsOps"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "ivan@kubernative.io"
+    groups:
+      - devops_prd
+  judy:
+    displayname: "Judy Platform"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "judy@kubernative.io"
+    groups:
+      - platform_dev
+  karl:
+    displayname: "Karl PlatformQA"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "karl@kubernative.io"
+    groups:
+      - platform_test
+  linda:
+    displayname: "Linda PlatformOps"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "linda@kubernative.io"
+    groups:
+      - platform_prd
+  viewer:
+    displayname: "Read Only User"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$15FDBn9/0QUPAZ0oIeUDqQ$ilA7QpRbEWBbPWhmXm61bQHhszenTMaCOg5Rd4ibgiI"
+    email: "viewer@kubernative.io"
+    groups:
+      - viewers

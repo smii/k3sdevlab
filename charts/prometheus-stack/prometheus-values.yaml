@@ -1,0 +1,136 @@
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: jwnJbWwGoScn8RZlGcdE
+
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - grafana.rtm.kubernative.io
+    path: /
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.rtm.kubernative.io
+
+  # kube-prometheus-stack 68+ rejects leaked secrets in values — use env injection
+  assertNoLeakedSecrets: false
+  # grafana-oidc-secret provides GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+  envFromSecret: grafana-oidc-secret
+
+  grafana.ini:
+    server:
+      domain: grafana.rtm.kubernative.io
+      root_url: https://grafana.rtm.kubernative.io
+
+    security:
+      allow_embedding: true
+      cookie_samesite: lax
+
+    feature_toggles:
+      enable: publicDashboards
+
+    auth:
+      disable_login_form: false
+      oauth_auto_login: false
+      oauth_skip_org_role_update_sync: false
+
+    auth.generic_oauth:
+      enabled: true
+      name: Authelia
+      client_id: grafana
+      client_secret: $__env{GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET}
+      scopes: openid profile email groups
+      auth_url: https://authelia.rtm.kubernative.io/api/oidc/authorization
+      token_url: https://authelia.rtm.kubernative.io/api/oidc/token
+      api_url: https://authelia.rtm.kubernative.io/api/oidc/userinfo
+      login_attribute_path: preferred_username
+      groups_attribute_path: groups
+      # Evaluated against ID token (Authelia client has claims_policy: id_token_groups)
+      role_attribute_path: contains(groups[*], 'admins') && 'GrafanaAdmin' || contains(groups[*], 'devops_prd') && 'Editor' || 'Viewer'
+      allow_assign_grafana_admin: true
+      token_endpoint_auth_method: client_secret_basic
+      use_pkce: true
+
+    users:
+      auto_assign_org: true
+      auto_assign_org_id: 1
+      auto_assign_org_role: Viewer
+
+    # Allow anonymous viewer access so Homepage iframe widgets work without double-login.
+    # Authelia forward-auth still protects at ingress level.
+    auth.anonymous:
+      enabled: true
+      org_role: Viewer
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+
+prometheus:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - prometheus.rtm.kubernative.io
+    paths:
+      - /
+    tls:
+      - secretName: prometheus-tls
+        hosts:
+          - prometheus.rtm.kubernative.io
+
+  prometheusSpec:
+    retention: 7d
+    walCompression: true
+    scrapeInterval: 60s
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 10Gi
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+
+alertmanager:
+  ingress:
+    enabled: false
+
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi

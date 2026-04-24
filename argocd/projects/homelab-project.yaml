@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: homelab
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Homelab applications project
+  sourceRepos:
+  - 'https://github.com/smii/k3sdevlab'
+  - 'https://helm.traefik.io/traefik'
+  - 'https://bitnami-labs.github.io/sealed-secrets'
+  - 'https://prometheus-community.github.io/helm-charts'
+  - 'https://grafana.github.io/helm-charts'
+  - 'https://helm.goharbor.io'
+  - 'https://jupyterhub.github.io/helm-chart'
+  - 'https://charts.authelia.com'
+  - 'https://crowdsecurity.github.io/helm-charts'
+  - 'https://dl.gitea.io/charts/'
+  - 'https://dirsigler.github.io/uptime-kuma-helm'
+  - 'https://qjoly.github.io/helm-charts/'
+  destinations:
+  - namespace: '*'
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'

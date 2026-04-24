@@ -1,0 +1,24 @@
+fullnameOverride: coder-postgres
+
+image:
+    registry: public.ecr.aws
+    repository: bitnami/postgresql
+  tag: 16
+
+auth:
+  database: coder
+  username: coder
+  password: "2e055df7a4a97053bef9a0ecb8eb5287"
+
+primary:
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: local-path
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

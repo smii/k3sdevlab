@@ -1,0 +1,30 @@
+persistence:
+  enabled: true
+  size: 50Gi
+  # storageClass: "local-path" # Uncomment and set if you don't have a default
+env:
+  - name: TRUST_PROXY
+    value: "true"
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Attach the middleware we created in Step 2
+    traefik.ingress.kubernetes.io/router.middlewares: sharing-pingvin-timeouts@kubernetescrd
+  hosts:
+    - host: pony.up.kubernative.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+  env:
+  - name: PUBLIC_URL
+    value: "https://pony.up.kubernative.io"

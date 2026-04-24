@@ -1,0 +1,49 @@
+# Applications Project
+# User-facing applications and services
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: applications
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: User-facing applications and services
+  sourceRepos:
+  - 'https://github.com/smii/k3sdevlab'
+  - 'https://helm.goharbor.io'
+  - 'https://dl.gitea.io/charts/'
+  - 'https://jupyterhub.github.io/helm-chart'
+  - 'https://qjoly.github.io/helm-charts'
+  - 'https://oben01.github.io/charts/'
+  - 'https://helm.coder.com/v2'
+  destinations:
+  - namespace: 'harbor'
+    server: https://kubernetes.default.svc
+  - namespace: 'gitea'
+    server: https://kubernetes.default.svc
+  - namespace: 'jupyter'
+    server: https://kubernetes.default.svc
+  - namespace: 'hugo-blog'
+    server: https://kubernetes.default.svc
+  - namespace: 'pingvin'
+    server: https://kubernetes.default.svc
+  - namespace: 'homepage'
+    server: https://kubernetes.default.svc
+  - namespace: 'homarr'
+    server: https://kubernetes.default.svc
+  - namespace: 'coder'
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  roles:
+  - name: developer
+    description: Developer access to applications
+    policies:
+    - p, proj:applications:developer, applications, *, applications/*, allow
+    groups:
+    - homelab:developers

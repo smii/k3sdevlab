@@ -1,0 +1,479 @@
+# CLAUDE.md — k3sdevlab Homelab Reference
+# Branch: develop · ArgoCD GitOps · K3s single-node
+
+## OVERVIEW
+
+K3s homelab managed via ArgoCD GitOps. All apps are declared in `argocd/applications/`
+and configured via `charts/*/values.yaml`. Pushing to `develop` triggers auto-sync.
+
+Active env file: `.env` (never `.env_test`)
+Installer: `./installer.sh` (bootstraps K3s + ArgoCD only — do not modify)
+
+---
+
+## URLS & NAMESPACES
+
+| App | URL | Namespace |
+|-----|-----|-----------|
+| ArgoCD | https://argocd.rtm.kubernative.io | argocd |
+| Authelia | https://authelia.rtm.kubernative.io | authelia |
+| Grafana | https://grafana.rtm.kubernative.io | monitoring |
+| Gitea | https://git.rtm.kubernative.io | gitea |
+| Harbor | https://notary.allaboard.rtm.kubernative.io | harbor |
+| Uptime Kuma | https://uptime.rtm.kubernative.io | uptime-kuma |
+| Jupyter | https://notebook.kubernative.io | jupyter |
+| Prometheus | https://prometheus.rtm.kubernative.io | monitoring |
+| Traefik | https://traefik.rtm.kubernative.io | traefik-system |
+| Falco | https://falco.rtm.kubernative.io | falco |
+| Coder | https://realcoder.rtm.kubernative.io | coder |
+| Mailcow | https://mymail.rtm.kubernative.io | mailcow |
+
+Internal domain: `*.rtm.kubernative.io` → `<NODE_IP>` (dnsmasq on ASUSWRT router — see `.env`)
+Public domain: `kubernative.io` (TransIP DNS)
+
+---
+## Specialized Resources
+- **Troubleshooting**: Use the `k8s-diagnostics` skill for initial error analysis (k8sgpt).
+- **Deep Architecture**: Delegate to the `kubernetes-specialist` subagent for complex YAML refactoring or networking issues.
+
+## Combined Workflow
+1. When a pod fails, first invoke `/k8s-diagnostics` to get an AI-distilled reason.
+2. If the fix requires a complex change (e.g., Service Mesh or RBAC), spawn a task for the `kubernetes-specialist` subagent to ensure best practices from its internal playbook.
+
+
+## ARCHITECTURE — WHAT IS ALREADY DONE
+
+### Ingress & TLS
+- **Traefik** is the ingress controller (`ingressClassName: traefik`)
+- **cert-manager** issues Let's Encrypt certs via HTTP-01 ACME
+- ClusterIssuer: `letsencrypt-prod` in `installer/cluster-issuer-le-prod.yaml`
+  - Uses `ingressClassName: traefik` (NOT the deprecated `class: traefik`)
+- All app ingresses have `cert-manager.io/cluster-issuer: letsencrypt-prod` + TLS blocks
+- All externally-accessible apps have valid LE certs
+
+### Authelia SSO
+- Every ingress (except Authelia itself) carries:
+  ```
+  traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+  ```
+- The Traefik Middleware CRD is at `k8s-manifests/authelia-middleware.yaml`
+  - Name: `forwardauth`, namespace: `authelia`
+  - Annotation format: `authelia-forwardauth@kubernetescrd` (namespace-name@kubernetescrd)
+- Authelia config: `charts/authelia/authelia-values.yaml`
+  - No SMTP — filesystem notifier only: `/tmp/authelia-notifications.log`
+  - TOTP only (WebAuthn disabled)
+  - File-based users: `/config/users.yml` (mounted from `authelia-users` secret)
+  - SQLite DB at `/config/db.sqlite3` on a 100Mi PVC (`persistence.enabled: true`)
+  - Password reset disabled
+
+### Authelia — Critical Helm Chart Quirks
+- **Secret rotation**: The chart generates random keys on every `helm upgrade`.
+  This was breaking the SQLite DB (encryption key mismatch).
+  **Fix applied**: `secret.disabled: false` + `secret.existingSecret: 'authelia'` in values,
+  AND secret annotated `helm.sh/resource-policy=keep` with NO `argocd.argoproj.io/tracking-id`.
+  - `existingSecret: 'authelia'` → chart uses existing secret, skips creating a new one
+  - `disabled: false` → chart writes proper file paths into configmap (REQUIRED)
+  - `helm.sh/resource-policy=keep` → Helm never deletes the secret
+  - **No ArgoCD tracking-id** → ArgoCD never prunes the secret on sync
+  - **Do NOT set `disabled: true`** — that leaves placeholder strings in the configmap;
+    the encryption_key file is mounted but never referenced, causing CrashLoopBackOff
+  - **Do NOT use `additionalSecrets`** as a workaround — same problem as `disabled: true`
+- **Secret file paths**: With `existingSecret`, files land at `/secrets/internal/<key>` inside the pod
+  (e.g. `/secrets/internal/storage.encryption.key`). This is the chart's internal mount sub-path.
+- **Configuration path**: `/configuration.yaml` (root of pod, NOT `/config/configuration.yaml`)
+- **PVC mount**: PVC `authelia` (100Mi) mounts at `/config/`
+- **YAML quoting bug**: `filename: '/tmp/...'` renders as `''/tmp/...''` in configmap.
+  Always use unquoted: `filename: /tmp/authelia-notifications.log`
+- **Dex**: Disabled (`dex.enabled: false`) — ArgoCD uses Authelia OIDC directly
+
+### Falco — Container Runtime Security
+- Deployed as part of the base security stack (namespace: `falco`)
+- ArgoCD app: `argocd/applications/security/falco.yaml`
+- Components: `falco` DaemonSet + `falcosidekick` + `falcosidekick-ui` (web dashboard)
+- Driver: `modern_ebpf` — works on kernel 5.8+ without kernel headers (K3s 6.8.x qualifies)
+- Containerd socket: `/run/k3s/containerd/containerd.sock`
+- UI: `https://falco.rtm.kubernative.io` — protected by Authelia forward-auth
+- UI basic auth is disabled (`disableauth: true`) — Authelia handles all auth
+- ACL: `admins`/`viewers` via wildcard; `devops_*`/`platform_*` via specific rules
+- K3s containerd socket path differs from standard Docker — must be set explicitly in values
+- `watch_config_files: false` required — inotify handler init fails on this node; config changes take effect via pod restart (ArgoCD sync) instead of live reload
+- Chart pinned to 7.2.1 (Falco 0.42.1) — 8.x introduces inotify regression regardless of driver type
+- Default rules are noisy; fluent-bit/argocd/grafana-sidecar all trigger "Contact K8S API Server From Container" — add `customRules` to suppress expected cluster traffic
+
+### OIDC Clients (in authelia-values.yaml)
+| Client ID | App | Redirect URI |
+|-----------|-----|-------------|
+| `gitea` | Gitea | `https://git.rtm.kubernative.io/user/oauth2/authelia/callback` |
+| `grafana` | Grafana | `https://grafana.rtm.kubernative.io/login/generic_oauth` |
+| `argocd` | ArgoCD | `https://argocd.rtm.kubernative.io/auth/callback` |
+| `coder` | Coder | `https://realcoder.rtm.kubernative.io/api/v2/users/oidc/callback` |
+
+Secrets are stored in `charts/authelia/authelia-values.yaml` — do not duplicate here.
+
+### ArgoCD SSO
+- Configured in `charts/argocd/argocd-values.yaml`
+- `oidc.config` points to Authelia issuer
+- RBAC: `admins`/`devops_prd` → `role:admin`, `devops_dev`/`devops_test` → sync-only, others → readonly
+- ArgoCD is managed by direct `helm upgrade` (not via ArgoCD self-management):
+  ```bash
+  helm upgrade argocd argo/argo-cd --namespace argocd --values charts/argocd/argocd-values.yaml
+  ```
+- ArgoCD repo: `https://github.com/smii/k3sdevlab` (HTTPS only — no SSH key in ArgoCD)
+
+### Groups & Access Policy
+Group naming: `<project>_dev` | `<project>_test` | `<project>_prd`
+
+| Group type | Authelia policy | ArgoCD role |
+|---|---|---|
+| admins | one_factor (all domains) | admin |
+| viewers | one_factor (all domains) | readonly |
+| *_dev, *_test | one_factor (project domains) | readonly / devops: sync |
+| *_prd | two_factor (project domains) | admin (devops_prd) / readonly |
+
+### TOTP
+- Pre-registered for all 14 users via CLI (bypasses identity-verification web flow)
+- TOTP URIs in `docs/authelia-totp.md`
+- To re-register a user:
+  ```bash
+  POD=$(kubectl get pods -n authelia -o name | head -1 | cut -d/ -f2)
+  kubectl exec -n authelia $POD -- authelia storage user totp generate <user> --config /configuration.yaml --force
+  ```
+
+### Users (`authelia-users.yml`)
+All 14 personas (argon2id hashed). Credentials are in `authelia-users.yml` — do not commit plaintext passwords here.
+
+---
+
+## HOW TO MAKE CHANGES
+
+### Modify an app
+Edit `charts/<app>/<app>-values.yaml` and push. ArgoCD auto-syncs.
+
+### Add a new app
+1. Create `argocd/applications/<category>/<app>.yaml`
+2. Create `charts/<app>/<app>-values.yaml` with:
+   ```yaml
+   ingress:
+     annotations:
+       traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+       cert-manager.io/cluster-issuer: letsencrypt-prod
+     tls:
+       - secretName: <app>-tls
+         hosts:
+           - <hostname>.rtm.kubernative.io
+   ```
+3. Push — ArgoCD deploys.
+
+### Authelia config changes
+Edit `charts/authelia/authelia-values.yaml` and push.
+ArgoCD syncs → new Authelia configmap → pod restarts.
+The secret is NOT touched (annotated `helm.sh/resource-policy=keep`).
+
+### Authelia DB wiped / encryption key mismatch
+```bash
+# 1. Delete stale DB
+kubectl run authelia-db-reset --rm -i --restart=Never \
+  --image=busybox \
+  --overrides='{"spec":{"volumes":[{"name":"data","persistentVolumeClaim":{"claimName":"authelia"}}],"containers":[{"name":"authelia-db-reset","image":"busybox","command":["sh","-c","rm -f /config/db.sqlite3 && echo DELETED"],"volumeMounts":[{"name":"data","mountPath":"/config"}]}]}}' \
+  -n authelia
+
+# 2. Restart immediately (before any crashing pod recreates a bad DB)
+kubectl rollout restart daemonset/authelia -n authelia
+kubectl rollout status daemonset/authelia -n authelia
+
+# 3. Re-register all TOTP secrets
+POD=$(kubectl get pods -n authelia -o name | head -1 | cut -d/ -f2)
+for user in smii alice bob carol dave eve frank grace henry ivan judy karl linda viewer; do
+  kubectl exec -n authelia $POD -- authelia storage user totp generate $user --config /configuration.yaml --force 2>&1
+done
+```
+
+---
+
+## VAGRANT DEV ENVIRONMENT
+
+Single-command local replica of the full stack for development and testing.
+
+### Quick start
+```bash
+vagrant up                            # lite profile — 8 GB RAM (recommended)
+VAGRANT_PROFILE=full vagrant up       # full profile — 12 GB RAM (adds Harbor/Loki/CrowdSec)
+VAGRANT_VM_IP=10.10.10.10 vagrant up  # custom IP if 192.168.56.100 conflicts
+```
+
+### How it works
+- **DNS**: nip.io wildcard — `*.192.168.56.100.nip.io` resolves to the VM's IP on the public
+  internet. No `/etc/hosts` changes needed on the host.
+- **TLS**: Self-signed CA via cert-manager (`ClusterIssuer: vagrant-ca`). Run `bash vagrant/trust-ca.sh`
+  once on your host to install the CA and remove browser warnings.
+- **Git**: `vagrant/provision.sh` patches all domain/issuer references, creates a local bare git
+  repo, and serves it via `git-daemon` on port 9418. ArgoCD uses `git://<VM_IP>/homelab.git`
+  instead of GitHub — fully offline.
+- **Let's Encrypt / public domain**: Not needed. The Vagrant environment substitutes
+  `letsencrypt-prod` with `vagrant-ca` and uses `.nip.io` instead of `kubernative.io`.
+
+### Key files
+| File | Purpose |
+|------|---------|
+| `Vagrantfile` | VM spec — VirtualBox (default) or libvirt |
+| `vagrant/provision.sh` | Full provisioner — idempotent, safe to re-run with `vagrant provision` |
+| `vagrant/cluster-issuer-ca.yaml` | cert-manager ClusterIssuer using the local CA |
+| `vagrant/trust-ca.sh` | Install the CA on the host (macOS, Linux, Windows) |
+
+### Profiles
+| Profile | RAM | What's excluded |
+|---------|-----|-----------------|
+| `lite` (default) | 8 GB | Harbor, CrowdSec, Loki, Fluent-Bit |
+| `full` | 12 GB | Nothing |
+
+### Credentials (all services)
+See `authelia-users.yml` for user list. ArgoCD admin: `admin` / `<ARGOCD_ADMIN_PASSWORD from .env.vagrant>`
+
+### What provision.sh does
+1. Installs system packages (including `apache2-utils` for `htpasswd`)
+2. Copies the repo to `/opt/homelab` and patches: domains → nip.io, issuer → vagrant-ca, git remote → local; `chmod -x scripts/update-configs.sh` to prevent template regeneration
+3. Creates `/srv/git/homelab.git` and starts `git-daemon.service` on port 9418
+4. Installs K3s (Traefik disabled), Helm, cert-manager
+5. Generates a 4096-bit self-signed CA at `/etc/ssl/vagrant-ca/ca.crt` and creates `ClusterIssuer: vagrant-ca`
+6. **Pre-creates the `authelia` namespace + K8s secrets** (`authelia` and `authelia-users`) before installer.sh runs — required because the Helm chart uses `existingSecret: 'authelia'` and ArgoCD would otherwise deploy the pod before the secret exists
+7. Runs `installer.sh .env.vagrant` → ArgoCD deploys all apps via GitOps
+8. Waits for Authelia and registers TOTP for all 14 test users
+
+### Vagrant gotchas
+| Gotcha | Detail |
+|--------|--------|
+| `scripts/update-configs.sh` disabled | provision.sh `chmod -x`s it so installer.sh doesn't regenerate templates over patched values |
+| Authelia secrets pre-created | provision.sh creates the `authelia` K8s secret and `authelia-users` secret in the `authelia` namespace BEFORE `installer.sh` runs. Without this, ArgoCD deploys Authelia before the secret exists and the pod CrashLoops. The secrets are annotated `helm.sh/resource-policy=keep` with NO `argocd.argoproj.io/tracking-id` |
+| `ORG_STRUCTURE_ENABLED=false` | Gitea orgs are skipped at install time (Gitea isn't ready yet). Set up manually after if needed |
+| ArgoCD sync takes ~10 min | Apps deploy in waves. Check progress at `https://argocd.<VM_IP>.nip.io` |
+| git-daemon port 9418 | ArgoCD pulls from `git://<VM_IP>/homelab.git`. If this port is firewalled inside the VM, ArgoCD will fail to sync |
+| nip.io needs internet | nip.io is a public DNS service. The VM needs outbound internet for DNS lookups. The apps themselves run offline |
+| authelia-users secret namespace | The `authelia-users` secret must be in the `authelia` namespace. `installer.sh`'s built-in `create_authelia_users_secret` creates it in `security` — provision.sh overrides this by pre-creating it in the correct namespace |
+
+---
+
+## TEKTON CI/CD
+
+### Overview
+- Tekton Pipelines + Dashboard deployed via ArgoCD (namespace: `tekton-pipelines`)
+- Dashboard URL: `https://tekton.rtm.kubernative.io`
+- Access: `devops_*` and `admins` groups only (Authelia forward-auth)
+
+### Sample App Pipeline
+- Source: `apps/sample-app/` in this repo
+- Pipeline: `tekton/pipelines/sample-app-pipeline.yaml`
+- Builds with kaniko (no Docker daemon needed in K3s)
+- Pushes to Harbor: `notary.allaboard.rtm.kubernative.io/library/sample-app:latest`
+- ArgoCD deploys from `apps/sample-app/k8s/`
+- Metrics scraped by Prometheus, visible in Grafana
+
+### Running a build
+```bash
+# Trigger a pipeline run
+kubectl apply -f tekton/pipelineruns/sample-app-run.yaml -n tekton-pipelines
+
+# Watch progress
+kubectl get pipelineruns -n tekton-pipelines -w
+
+# View logs for a specific task run
+kubectl logs -n tekton-pipelines -l tekton.dev/pipelineRun=<run-name> --all-containers
+```
+
+### Harbor credentials secret
+Must be created manually before first run (not committed to Git):
+```bash
+kubectl create secret docker-registry harbor-credentials \
+  --docker-server=notary.allaboard.rtm.kubernative.io \
+  --docker-username=<user> \
+  --docker-password=<password> \
+  -n tekton-pipelines
+```
+
+### Grafana dashboards
+Two dashboards are pre-loaded via ConfigMap (label `grafana_dashboard: "1"`, picked up by Grafana sidecar):
+- "Sample App" (`k8s-manifests/grafana-dashboard-sample-app.yaml`) — HTTP request rate, error rate, p50/p95/p99 latency, active requests
+- "Tekton Pipelines" (`k8s-manifests/grafana-dashboard-tekton.yaml`) — pipeline run status, duration, success rate
+
+---
+
+## KNOWN GOTCHAS
+
+| Gotcha | Detail |
+|--------|--------|
+| ArgoCD managed by Helm directly | Not self-managed. Use `helm upgrade` to apply `charts/argocd/argocd-values.yaml` |
+| Authelia secret mount | **Definitive pattern**: `secret.disabled: false` + `secret.existingSecret: 'authelia'`. `disabled: true` mounts files but leaves placeholder strings in the configmap — encryption_key is never read. `existingSecret` makes the chart write proper file paths into the configmap without rendering a new Secret manifest. |
+| Authelia secret must not be regenerated | Secret created manually, annotated `helm.sh/resource-policy=keep` and **must NOT have** `argocd.argoproj.io/tracking-id`. If the tracking-id is present, ArgoCD prunes the secret when Helm stops rendering it — even with `helm.sh/resource-policy: keep` (that annotation only stops Helm, not ArgoCD). Remove with: `kubectl annotate secret authelia -n authelia argocd.argoproj.io/tracking-id-`. If the secret goes missing, extract current values from the running pod at `/secrets/internal/<key>` before it restarts. |
+| cert-manager ClusterIssuer | Must use `ingressClassName: traefik` not `class: traefik` (deprecated) |
+| Authelia forward-auth on external requests | Traefik strips `X-Forwarded-Method` externally → `/api/authz/forward-auth` returns 400 when tested with curl from outside. Works correctly in production |
+| TOTP identity verification | Authelia v4.38+ requires an OTP via notifier before allowing 2FA web enrollment. Bypass: use CLI to pre-register |
+| Notification log location | `kubectl exec -n authelia <pod> -- cat /tmp/authelia-notifications.log` |
+| ArgoCD initial admin password | `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" \| base64 -d` |
+| uptime-kuma entrypoint restriction | Do NOT add `traefik.ingress.kubernetes.io/router.entrypoints: websecure` — blocks HTTP-01 ACME challenge |
+| gitea/harbor OutOfSync | Suppressed via `ignoreDifferences` on PVC storageClassName (gitea) and Secret data (harbor). Apps are healthy — this is drift from immutable/generated fields |
+
+---
+
+## OPTIONAL ADD-ONS
+
+These components are **personal/optional** — not installed by default. Each is controlled by a
+feature flag in `.env`. The ArgoCD Application manifest for each lives in
+`argocd/applications/addons/`. The installer checks the flags and only applies the
+corresponding Application if the flag is `true`.
+
+> **Note**: Falco is NOT in this section — it is part of the base security stack.
+
+Pattern for each add-on:
+1. Add `INSTALL_<APP>=false` default to `installer.sh` config_vars section (do not modify installer.sh directly — add via `.env`)
+2. Create `argocd/applications/addons/<app>.yaml`
+3. Create `charts/<app>/<app>-values.yaml`
+4. Add Authelia ACL rules + OIDC client if the app supports OIDC
+
+---
+
+### Coder — Remote Development Environment
+
+**Installed by default** — `argocd/applications/apps/coder.yaml`
+
+| Item | Value |
+|------|-------|
+| Namespace | `coder` |
+| URL | `https://realcoder.rtm.kubernative.io` |
+| Helm repo | `https://helm.coder.com/v2` chart `coder` |
+| SSO | Authelia OIDC (client_id `coder`) — configured |
+| Database | Bitnami PostgreSQL deployed alongside (`coder-postgres`) |
+
+**Gotchas:**
+- Workspace templates (Docker, K8s) are configured inside the Coder UI after first login
+- The wildcard ingress `*.realcoder.rtm.kubernative.io` is needed for workspace port forwarding — configured in `coder-values.yaml`
+- DB password and OIDC secret are in `charts/coder/coder-values.yaml` and `charts/coder/postgres-values.yaml`
+
+---
+
+### Mailcow — Full Mailserver
+
+| Item | Value |
+|------|-------|
+| Flag | `INSTALL_MAILCOW=true` in `.env` |
+| Namespace | `mailcow` |
+| URL | `https://mymail.rtm.kubernative.io` (SOGo webmail + admin panel) |
+| Deployment | Docker Compose via Mailcow-dockerized OR community Helm chart |
+| SSO | Authelia forward-auth for admin panel; SOGo has its own login |
+
+> **Installer pause**: The installer MUST stop after provisioning the namespace and before
+> starting Mailcow, to allow you to set the required DNS records (MX, SPF, DKIM, DMARC, PTR)
+> at TransIP. Without these, mail delivery will fail silently.
+
+#### Step 1 — Required DNS records at TransIP (`kubernative.io`)
+
+| Type | Name | Value | TTL |
+|------|------|-------|-----|
+| A | `mail` | `<PUBLIC_IP>` | 300 |
+| MX | `@` | `mail.kubernative.io` (priority 10) | 3600 |
+| TXT | `@` | `v=spf1 mx ~all` | 3600 |
+| TXT | `mail._domainkey` | *(generated by Mailcow — get from Admin → Configuration → ARC/DKIM Keys after first boot)* | 3600 |
+| TXT | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:postmaster@kubernative.io` | 3600 |
+| PTR | `<PUBLIC_IP>` | `mail.kubernative.io` | *(set at ISP/VPS — not TransIP)* |
+
+> PTR (reverse DNS) must be set at your ISP or VPS provider for the public IP — not in TransIP.
+> Without a matching PTR, most receiving mail servers will reject or spam-folder your outbound mail.
+
+#### Step 2 — Required open ports (router port forwarding → `<NODE_IP>`)
+
+| Port | Protocol | Purpose | Required? |
+|------|----------|---------|-----------|
+| 25 | TCP | SMTP inbound (receiving mail) | **Yes** |
+| 465 | TCP | SMTPS (sending, SSL) | Yes |
+| 587 | TCP | Submission (sending, STARTTLS) | Yes |
+| 993 | TCP | IMAPS (mail client sync) | Yes |
+| 995 | TCP | POP3S (optional — most clients use IMAP) | No |
+| 4190 | TCP | ManageSieve (server-side mail filtering) | No |
+| 80 | TCP | Already open — ACME HTTP-01 challenge | Yes |
+| 443 | TCP | Already open — HTTPS webmail | Yes |
+
+> ISPs sometimes block port 25 on residential lines. Verify with: `nc -zv smtp.gmail.com 25` from
+> the server. If blocked, contact ISP or use a smarthost/relay.
+
+#### Step 3 — Mailcow Helm / deployment approach
+
+Mailcow is primarily distributed as Docker Compose. K8s deployment options:
+- **Option A (recommended)**: Run Mailcow in its own VM/container outside K3s, proxy via Traefik ExternalName service — keeps mailserver isolation clean
+- **Option B**: Use community Helm chart `mailcow` from `https://github.com/mailcow/mailcow-helm` — less mature, but keeps everything in K3s
+
+For Option B, key values (`charts/mailcow/mailcow-values.yaml`):
+```yaml
+mailcow:
+  hostname: mail.kubernative.io
+  timezone: Europe/Amsterdam
+
+ingress:
+  enabled: true
+  ingressClassName: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: mymail.rtm.kubernative.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: mailcow-tls
+      hosts:
+        - mymail.rtm.kubernative.io
+```
+
+> The Authelia forward-auth middleware protects the admin panel at `/mailcow-admin`.
+> SOGo webmail (`/SOGo`) can be left unprotected or also wrapped — your preference.
+
+**Authelia ACL** — add:
+```yaml
+- domain: "mymail.rtm.kubernative.io"
+  policy: one_factor
+  subject:
+    - "group:admins"
+- domain: "mymail.rtm.kubernative.io"
+  policy: bypass
+  resources:
+    - "^/SOGo.*"    # allow webmail without Authelia login — Mailcow handles its own auth
+```
+
+#### Installer pause flow
+
+Add this to the optional installer block:
+```bash
+if [[ "${INSTALL_MAILCOW}" == "true" ]]; then
+  echo ""
+  echo "⚠️  MAILCOW REQUIRES MANUAL DNS SETUP — pausing installer."
+  echo ""
+  echo "Add the following DNS records at your provider (TransIP → kubernative.io):"
+  echo "  A     mail.kubernative.io    → <PUBLIC_IP>"
+  echo "  MX    kubernative.io         → mail.kubernative.io (priority 10)"
+  echo "  TXT   kubernative.io         → v=spf1 mx ~all"
+  echo "  TXT   _dmarc.kubernative.io  → v=DMARC1; p=quarantine; rua=mailto:postmaster@kubernative.io"
+  echo ""
+  echo "Also open these ports on your router (forward to <NODE_IP>):"
+  echo "  25, 465, 587, 993, 995, 4190"
+  echo ""
+  echo "After DNS propagates (check: dig MX kubernative.io), press ENTER to continue."
+  read -r
+  # Then apply the ArgoCD Application
+  kubectl apply -f argocd/applications/addons/mailcow.yaml
+  echo "After Mailcow starts, get the DKIM key from Admin → Configuration → ARC/DKIM Keys"
+  echo "and add it as TXT mail._domainkey.kubernative.io at TransIP."
+fi
+```
+
+---
+
+## CONSTRAINTS
+
+- Do NOT modify `installer.sh`
+- Do NOT add SMTP config to Authelia — filesystem notifier only (Mailcow is a separate service)
+- Do NOT use `.env_test` — active file is `.env`
+- Do NOT commit plaintext passwords, IPs, or OIDC secrets to CLAUDE.md — reference the source files
+- Domain convention: `*.rtm.kubernative.io` for internal, `kubernative.io` for public
+- Group names use underscores: `homelab_dev` not `homelab-dev`
+- Authelia middleware annotation: `authelia-forwardauth@kubernetescrd`
+- ArgoCD repo source: HTTPS only (`https://github.com/smii/k3sdevlab`) for production
+- Optional add-ons go in `argocd/applications/addons/` — NOT in core `argocd/applications/`
+- Optional add-on flags default to `false` in installer; enable per-environment in `.env`

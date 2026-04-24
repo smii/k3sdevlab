@@ -1,0 +1,37 @@
+# OpenVSCode Server — Web-based VS Code (gitpod-io/openvscode-server)
+# Access: https://realcoder.rtm.kubernative.io
+# Auth: Authelia forward-auth (no OIDC, no built-in auth)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: code-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: remote-dev
+    app.kubernetes.io/part-of: applications
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: applications
+  sources:
+    - repoURL: https://github.com/smii/k3sdevlab
+      targetRevision: HEAD
+      path: k8s-manifests/code-server
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: code-server
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m

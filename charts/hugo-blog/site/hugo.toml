@@ -1,0 +1,87 @@
+baseURL = 'https://rtm.local/'
+languageCode = 'en-us'
+title = ''
+theme = ["github.com/lordmathis/hugo-theme-nightfall"]
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
+[pagination]
+pagerSize = 3
+
+
+[params]
+#user = "ᗧ···ᗣ···ᗣ··"
+user = "root"
+hostname = "kubernative.io/ "
+
+#footerHtml = """
+#  <strong>🏴‍☠ __̴ı̴̴̡̡̡ ̡͌l̡̡̡ ̡͌l̡*̡̡ ̴̡ı̴̴̡ ̡̡͡|̲̲̲͡͡͡ ̲▫̲͡ ̲̲̲͡͡π̲̲͡͡ ̲̲͡▫̲̲͡͡ ̲|̡̡̡ ̡ ̴̡ı̴̡̡ ̡͌l̡̡̡̡.___ 🏴‍☠
+#  """
+
+[menu]
+  [[menu.header]]
+    name = "blog"
+    weight = 0
+    url = "BLOG"
+  [[menu.header]]
+    name = "about"
+    weight = 1
+    url = "about"
+
+
+
+# Global metadata display settings                                  
+# Each can be overridden in individual post frontmatter             
+showMetadata = true       # Master switch for all metadata display  
+showPublishedDate = true  # Show published date on post page        
+showReadingTime = false    # Show reading time on post page         
+showTags = true           # Show tags on post page                  
+showAuthors = true        # Show authors on post page               
+showCategories = true     # Show categories on post page            
+#  <strong>🏴‍☠ __̴ı̴̴̡̡̡ ̡͌l̡̡̡ ̡͌l̡*̡̡ ̴̡ı̴̴̡ ̡̡͡|̲̲̲͡͡͡ ̲▫̲͡ ̲̲̲͡͡π̲̲͡͡ ̲̲͡▫̲̲͡͡ ̲|̡̡̡ ̡ ̴̡ı̴̡̡ ̡͌l̡̡̡̡.___ 🏴‍☠                             
+#  """                                                               
+  [params.author]                                                   
+    name = " S  M I  I "
+    email = "mj.lopes@gmail.com"  # RSS feed email address          
+                                                                    
+                                                                    
+[[params.social]]                                                   
+key = "0"                                                           
+name = "GitHub"                                                     
+url = "https://github.com/smii"                                     
+target = "_blank"                                                   
+# icon = "fab fa-github"                                              
+                                                  
+[[params.social]]                                 
+key = 3                                           
+name = "LinkedIn"                                 
+url = "https://www.linkedin.com/in/miguellopes1"                    
+aria = "LinkedIN Profile"                         
+
+[[params.social]]                                 
+key = 4                                           
+name = "E-Mail"                                   
+url = "mj.lopes@gmail.com"                        
+aria = "email"                                    
+
+[module]
+  [[module.mounts]]
+    source = "/data_volume/scraped_data.json"
+    target = "data/scraped_data.json"
+  [[module.mounts]]
+    source = "/data_volume/cache"
+    target = "static/cache"
+  [[module.mounts]]
+    source = "content"
+    target = "content"
+  [[module.mounts]]
+    source = "layouts"
+    target = "layouts"
+  [[module.mounts]]
+    source = "static"
+    target = "static"
+[[module.imports]]
+  path = 'github.com/lordmathis/hugo-theme-nightfall'

@@ -1,0 +1,56 @@
+# CrowdSec - Collaborative Security Engine
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: crowdsec
+  namespace: argocd
+  labels:
+    app.kubernetes.io/component: threat-detection
+    app.kubernetes.io/part-of: security
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: security
+  sources:
+    - repoURL: https://crowdsecurity.github.io/helm-charts
+      chart: crowdsec
+      targetRevision: "*"
+      helm:
+        valueFiles:
+          - $values/charts/crowdsec/security-engine-values.yaml
+    - repoURL: https://github.com/smii/k3sdevlab
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: crowdsec
+  ignoreDifferences:
+    # Helm regenerates random csLapiSecret + registrationToken on every template render.
+    # The live secret must not be overwritten - ignore data drift (same fix as harbor/authelia).
+    - group: ""
+      kind: Secret
+      name: crowdsec-lapi-secrets
+      namespace: crowdsec
+      jsonPointers:
+        - /data
+    # Deployment checksum annotation changes whenever the secret re-renders.
+    - group: apps
+      kind: Deployment
+      name: crowdsec-lapi
+      namespace: crowdsec
+      jqPathExpressions:
+        - '.spec.template.metadata.annotations["checksum/lapi-secret"]'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

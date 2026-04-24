@@ -1,0 +1,92 @@
+image:
+  repository: registry.rtm.local/hugo/hugo
+  # This sets the pull policy for images.
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+imagePullSecrets: []
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 1313
+
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: "authelia-forwardauth@kubernetescrd,default-redirect-https@kubernetescrd"
+  hosts:
+    - host: blog.rtm.kubernative.io
+      backend:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: hugo-bloggert
+              port:
+  tls: 
+    - secretName: blog.rtm.kubernative.io-tls
+      hosts:
+        - blog.rtm.kubernative.io
+
+
+
+
+volumes:
+  - name: site-data
+    hostPath:
+      path: /srv/homelab/charts/hugo-blog/site
+      type: Directory 
+
+volumeMounts:
+  - name: site-data
+    mountPath: /src
+
+httpRoute:
+  enabled: false
+
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+
+resources: {}
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
