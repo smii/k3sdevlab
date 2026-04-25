@@ -47,7 +47,7 @@ spec:
             - "--bind"
             - "0.0.0.0"
             - "--baseURL"
-            - "lz.dev.kubernative.io"
+            - "kubernative.io"
             - "--appendPort=false"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
